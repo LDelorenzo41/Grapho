@@ -1,0 +1,115 @@
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Calendar, FileText, MessageSquare } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+import { dataAdapter, type Appointment, type Message } from '../../lib/data';
+import { formatDateTime } from '../../lib/utils/date';
+
+export function ClientDashboard() {
+  const { user } = useAuth();
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadData = async () => {
+      if (!user) return;
+      try {
+        const [apts, msgs] = await Promise.all([
+          dataAdapter.appointments.getByClientId(user.id),
+          dataAdapter.messages.getByUserId(user.id),
+        ]);
+        setAppointments(apts);
+        setMessages(msgs);
+      } catch (error) {
+        console.error('Error loading data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, [user]);
+
+  const nextAppointment = appointments
+    .filter(apt => apt.status === 'scheduled' && new Date(apt.startTime) > new Date())
+    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())[0];
+
+  const unreadMessages = messages.filter(m => !m.read && m.recipientId === user?.id);
+
+  if (loading) {
+    return <div className="py-16 text-center"><p className="font-body text-gray-600">Chargement...</p></div>;
+  }
+
+  return (
+    <div className="py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <h1 className="font-title text-4xl font-bold text-text mb-2">Bonjour {user?.firstName} !</h1>
+        <p className="font-body text-gray-600 mb-8">Bienvenue sur votre espace personnel</p>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <Link
+            to="/client/rendez-vous"
+            className="bg-white rounded-lg shadow-sm border p-6 hover:shadow-md transition"
+          >
+            <div className="flex items-center space-x-3 mb-3">
+              <Calendar className="w-6 h-6 text-primary" />
+              <h3 className="font-title text-lg font-bold text-text">Mes rendez-vous</h3>
+            </div>
+            <p className="font-body text-3xl font-bold text-text">{appointments.length}</p>
+            <p className="font-body text-sm text-gray-600 mt-1">rendez-vous au total</p>
+          </Link>
+
+          <Link
+            to="/client/documents"
+            className="bg-white rounded-lg shadow-sm border p-6 hover:shadow-md transition"
+          >
+            <div className="flex items-center space-x-3 mb-3">
+              <FileText className="w-6 h-6 text-secondary" />
+              <h3 className="font-title text-lg font-bold text-text">Mes documents</h3>
+            </div>
+            <p className="font-body text-3xl font-bold text-text">-</p>
+            <p className="font-body text-sm text-gray-600 mt-1">documents disponibles</p>
+          </Link>
+
+          <div className="bg-white rounded-lg shadow-sm border p-6">
+            <div className="flex items-center space-x-3 mb-3">
+              <MessageSquare className="w-6 h-6 text-primary" />
+              <h3 className="font-title text-lg font-bold text-text">Messages</h3>
+            </div>
+            <p className="font-body text-3xl font-bold text-text">{unreadMessages.length}</p>
+            <p className="font-body text-sm text-gray-600 mt-1">non lus</p>
+          </div>
+        </div>
+
+        {nextAppointment && (
+          <div className="bg-primary/5 rounded-lg border-2 border-primary p-6 mb-8">
+            <h2 className="font-title text-2xl font-bold text-text mb-3">Prochain rendez-vous</h2>
+            <p className="font-body text-lg text-gray-700">
+              {formatDateTime(nextAppointment.startTime)}
+            </p>
+            {nextAppointment.notes && (
+              <p className="font-body text-sm text-gray-600 mt-2">{nextAppointment.notes}</p>
+            )}
+          </div>
+        )}
+
+        {messages.length > 0 && (
+          <div className="bg-white rounded-lg shadow-sm border p-6">
+            <h2 className="font-title text-2xl font-bold text-text mb-4">Messages récents</h2>
+            <div className="space-y-3">
+              {messages.slice(0, 3).map(msg => (
+                <div key={msg.id} className="border-l-4 border-primary pl-4 py-2">
+                  <p className="font-body font-semibold text-text">{msg.subject}</p>
+                  <p className="font-body text-sm text-gray-600 line-clamp-2">{msg.content}</p>
+                  <p className="font-body text-xs text-gray-500 mt-1">
+                    {new Date(msg.sentAt).toLocaleDateString('fr-FR')}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

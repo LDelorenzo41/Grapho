@@ -1,0 +1,116 @@
+import { useEffect, useState } from 'react';
+import { FileText, Upload } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+import { dataAdapter, type Document } from '../../lib/data';
+
+export function ClientDocuments() {
+  const { user } = useAuth();
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    const loadDocuments = async () => {
+      if (!user) return;
+      try {
+        const docs = await dataAdapter.documents.getVisibleToUser(user.id, user.role);
+        setDocuments(docs);
+      } catch (error) {
+        console.error('Error loading documents:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadDocuments();
+  }, [user]);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!user || !e.target.files || e.target.files.length === 0) return;
+
+    const file = e.target.files[0];
+    setUploading(true);
+
+    try {
+      const newDoc = await dataAdapter.documents.create({
+        userId: user.id,
+        uploadedBy: user.id,
+        fileName: file.name,
+        fileType: file.type,
+        fileSize: file.size,
+        category: 'Documents clients',
+        visibility: 'specific',
+        visibleToUserIds: [user.id, 'admin-1'],
+      });
+      setDocuments([newDoc, ...documents]);
+      alert('Document déposé avec succès ! Votre graphothérapeute peut maintenant le consulter.');
+    } catch (error) {
+      console.error('Error uploading document:', error);
+      alert('Erreur lors du dépôt du document');
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  };
+
+  if (loading) {
+    return <div className="py-16 text-center"><p className="font-body text-gray-600">Chargement...</p></div>;
+  }
+
+  return (
+    <div className="py-8">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="font-title text-4xl font-bold text-text">Mes documents</h1>
+          <label className="flex items-center space-x-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition cursor-pointer font-body">
+            <Upload className="w-4 h-4" />
+            <span>{uploading ? 'Dépôt en cours...' : 'Déposer un document'}</span>
+            <input
+              type="file"
+              onChange={handleFileUpload}
+              disabled={uploading}
+              className="hidden"
+              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+            />
+          </label>
+        </div>
+
+        {documents.length === 0 ? (
+          <div className="bg-white rounded-lg shadow-sm border p-8 text-center">
+            <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <p className="font-body text-gray-600">Aucun document</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {documents.map(doc => (
+              <div key={doc.id} className="bg-white rounded-lg shadow-sm border p-6">
+                <div className="flex items-start space-x-4">
+                  <div className="flex-shrink-0 w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                    <FileText className="w-6 h-6 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-body font-semibold text-text truncate">{doc.fileName}</h3>
+                    <p className="font-body text-sm text-gray-600">{formatFileSize(doc.fileSize)}</p>
+                    {doc.category && (
+                      <span className="inline-block mt-2 px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded">
+                        {doc.category}
+                      </span>
+                    )}
+                    <p className="font-body text-xs text-gray-500 mt-2">
+                      Ajouté le {new Date(doc.uploadedAt).toLocaleDateString('fr-FR')}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
