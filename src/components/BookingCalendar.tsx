@@ -74,12 +74,14 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
         return;
       }
 
+      // ✅ CORRECTION: Passer le mot de passe lors de la création
       const newUser = await dataAdapter.users.create({
         email: bookingData.email,
         role: 'client',
         firstName: bookingData.firstName,
         lastName: bookingData.lastName,
         phone: bookingData.phone,
+        password: bookingData.password, // ← Ajout du mot de passe
       });
 
       const startTime = `${selectedSlot.date}T${selectedSlot.startTime}`;
@@ -260,52 +262,48 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
                 />
               </div>
 
-              <div className="border-t pt-4 mt-2">
-                <h4 className="font-body font-semibold text-text mb-3">Créez votre mot de passe</h4>
-                <div className="space-y-3">
-                  <div>
-                    <label className="block font-body text-sm font-medium text-text mb-2">
-                      Mot de passe * (min. 6 caractères)
-                    </label>
-                    <input
-                      type="password"
-                      required
-                      minLength={6}
-                      value={bookingData.password}
-                      onChange={(e) => setBookingData({ ...bookingData, password: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent font-body"
-                    />
-                  </div>
-                  <div>
-                    <label className="block font-body text-sm font-medium text-text mb-2">
-                      Confirmer le mot de passe *
-                    </label>
-                    <input
-                      type="password"
-                      required
-                      minLength={6}
-                      value={bookingData.confirmPassword}
-                      onChange={(e) => setBookingData({ ...bookingData, confirmPassword: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent font-body"
-                    />
-                  </div>
-                </div>
+              <div>
+                <label className="block font-body text-sm font-medium text-text mb-2">
+                  Mot de passe * (min. 6 caractères)
+                </label>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  value={bookingData.password}
+                  onChange={(e) => setBookingData({ ...bookingData, password: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent font-body"
+                />
               </div>
 
-              <div className="flex space-x-3 pt-4">
+              <div>
+                <label className="block font-body text-sm font-medium text-text mb-2">
+                  Confirmer le mot de passe *
+                </label>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  value={bookingData.confirmPassword}
+                  onChange={(e) => setBookingData({ ...bookingData, confirmPassword: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent font-body"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
                 <button
                   type="button"
                   onClick={() => {
                     setShowBookingForm(false);
                     setSelectedSlot(null);
                   }}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition font-body"
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg font-body font-medium text-gray-700 hover:bg-gray-50 transition"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition font-body font-semibold"
+                  className="flex-1 px-4 py-2 bg-primary text-white rounded-lg font-body font-medium hover:bg-primary-dark transition"
                 >
                   Créer mon compte et confirmer
                 </button>

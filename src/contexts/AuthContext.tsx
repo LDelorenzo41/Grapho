@@ -1,10 +1,11 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createClient } from '@supabase/supabase-js';
 import { dataAdapter, type User } from '../lib/data';
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (email: string) => Promise<User>;
+  login: (email: string, password: string) => Promise<User>;
   logout: () => void;
 }
 
@@ -12,9 +13,23 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const AUTH_STORAGE_KEY = 'graphotherapie_auth_user_id';
 
+// Créer le client Supabase
+const getSupabaseClient = () => {
+  const url = import.meta.env.VITE_SUPABASE_URL;
+  const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+  if (!url || !key) {
+    console.warn('Supabase credentials not configured');
+    return null;
+  }
+
+  return createClient(url, key);
+};
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const supabase = getSupabaseClient();
 
   useEffect(() => {
     const loadUser = async () => {
@@ -37,20 +52,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loadUser();
   }, []);
 
-  const login = async (email: string): Promise<User> => {
-    const foundUser = await dataAdapter.users.getByEmail(email);
-    if (foundUser) {
-      setUser(foundUser);
-      localStorage.setItem(AUTH_STORAGE_KEY, foundUser.id);
-      return foundUser;
-    } else {
-      throw new Error('Utilisateur non trouvé');
-    }
+  const login = async (email: string, password: string): Promise<User> => {
+    if (!supabase) throw new Error('Supabase non configuré');
+    
+    // 1. Authentification Supabase
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    
+    if (authError) throw authError;
+    if (!authData.user) throw new Error('Authentification échouée');
+    
+    // 2. Récupérer les données utilisateur de la table users
+    const foundUser = await dataAdapter.users.getById(authData.user.id);
+    if (!foundUser) throw new Error('Utilisateur non trouvé');
+    
+    setUser(foundUser);
+    localStorage.setItem(AUTH_STORAGE_KEY, foundUser.id);
+    return foundUser;
   };
 
   const logout = () => {
     setUser(null);
     localStorage.removeItem(AUTH_STORAGE_KEY);
+    // Optionnel : déconnexion Supabase
+    if (supabase) {
+      supabase.auth.signOut();
+    }
   };
 
   return (

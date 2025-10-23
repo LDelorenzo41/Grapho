@@ -36,6 +36,11 @@ export function ClientDashboard() {
 
   const unreadMessages = messages.filter(m => !m.read && m.recipientId === user?.id);
 
+  // Compter uniquement les rendez-vous prévus (scheduled) et non annulés
+  const scheduledAppointmentsCount = appointments.filter(apt => 
+    apt.status === 'scheduled' || apt.status === 'completed'
+  ).length;
+
   if (loading) {
     return <div className="py-16 text-center"><p className="font-body text-gray-600">Chargement...</p></div>;
   }
@@ -55,7 +60,7 @@ export function ClientDashboard() {
               <Calendar className="w-6 h-6 text-primary" />
               <h3 className="font-title text-lg font-bold text-text">Mes rendez-vous</h3>
             </div>
-            <p className="font-body text-3xl font-bold text-text">{appointments.length}</p>
+            <p className="font-body text-3xl font-bold text-text">{scheduledAppointmentsCount}</p>
             <p className="font-body text-sm text-gray-600 mt-1">rendez-vous au total</p>
           </Link>
 

@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import type { DataAdapter } from '../ports';
+import type { DataAdapter, CreateUserInput } from '../ports';
 import type {
   User,
   Appointment,
@@ -10,7 +10,16 @@ import type {
   Session,
   Prescription,
   AvailableSlot,
+  AvailabilityRule,
 } from '../types';
+import { 
+  userToSnakeCase, 
+  userFromSnakeCase,
+  appointmentToSnakeCase,
+  appointmentFromSnakeCase,
+  messageToSnakeCase,
+  messageFromSnakeCase
+} from './supabaseHelpers';
 
 const getSupabaseClient = (): SupabaseClient | null => {
   const url = import.meta.env.VITE_SUPABASE_URL;
@@ -33,7 +42,7 @@ export const createSupabaseAdapter = (): DataAdapter => {
         if (!supabase) return [];
         const { data, error } = await supabase.from('users').select('*');
         if (error) throw error;
-        return data || [];
+        return (data || []).map(userFromSnakeCase);
       },
       async getById(id: string) {
         if (!supabase) return null;
@@ -43,7 +52,7 @@ export const createSupabaseAdapter = (): DataAdapter => {
           .eq('id', id)
           .maybeSingle();
         if (error) throw error;
-        return data;
+        return data ? userFromSnakeCase(data) : null;
       },
       async getByEmail(email: string) {
         if (!supabase) return null;
@@ -53,28 +62,73 @@ export const createSupabaseAdapter = (): DataAdapter => {
           .eq('email', email)
           .maybeSingle();
         if (error) throw error;
-        return data;
+        return data ? userFromSnakeCase(data) : null;
       },
-      async create(user) {
+      async create(user: CreateUserInput) {
         if (!supabase) throw new Error('Supabase not configured');
-        const { data, error } = await supabase
-          .from('users')
-          .insert(user)
-          .select()
-          .single();
-        if (error) throw error;
-        return data;
+        
+        try {
+          // 1. Créer le compte d'authentification Supabase si un mot de passe est fourni
+          let authUserId: string;
+          
+          if (user.password) {
+            const { data: authData, error: authError } = await supabase.auth.signUp({
+              email: user.email,
+              password: user.password,
+              options: {
+                data: {
+                  first_name: user.firstName,
+                  last_name: user.lastName,
+                },
+                emailRedirectTo: undefined, // Pas de redirection email pour le moment
+              }
+            });
+            
+            if (authError) {
+              console.error('Auth error:', authError);
+              throw authError;
+            }
+            if (!authData.user) throw new Error('Failed to create auth user');
+            
+            authUserId = authData.user.id;
+          } else {
+            // Mode legacy : générer un ID aléatoire si pas de mot de passe
+            authUserId = crypto.randomUUID();
+          }
+          
+          // 2. Créer l'entrée dans la table users (sans le mot de passe)
+          const { password, ...userWithoutPassword } = user;
+          const dbUser = userToSnakeCase({ ...userWithoutPassword, id: authUserId });
+          
+          const { data, error } = await supabase
+            .from('users')
+            .insert(dbUser)
+            .select()
+            .single();
+            
+          if (error) {
+            console.error('Database error:', error);
+            throw error;
+          }
+          
+          // Convertir le résultat de snake_case vers camelCase
+          return userFromSnakeCase(data);
+        } catch (error) {
+          console.error('Error creating user:', error);
+          throw error;
+        }
       },
       async update(id: string, updates: Partial<User>) {
         if (!supabase) throw new Error('Supabase not configured');
+        const dbUpdates = userToSnakeCase(updates);
         const { data, error } = await supabase
           .from('users')
-          .update(updates)
+          .update(dbUpdates)
           .eq('id', id)
           .select()
           .single();
         if (error) throw error;
-        return data;
+        return userFromSnakeCase(data);
       },
       async delete(id: string) {
         if (!supabase) throw new Error('Supabase not configured');
@@ -87,7 +141,7 @@ export const createSupabaseAdapter = (): DataAdapter => {
         if (!supabase) return [];
         const { data, error } = await supabase.from('appointments').select('*');
         if (error) throw error;
-        return data || [];
+        return (data || []).map(appointmentFromSnakeCase);
       },
       async getById(id: string) {
         if (!supabase) return null;
@@ -97,32 +151,32 @@ export const createSupabaseAdapter = (): DataAdapter => {
           .eq('id', id)
           .maybeSingle();
         if (error) throw error;
-        return data;
+        return data ? appointmentFromSnakeCase(data) : null;
       },
       async getByClientId(clientId: string) {
         if (!supabase) return [];
         const { data, error } = await supabase
           .from('appointments')
           .select('*')
-          .eq('clientId', clientId);
+          .eq('client_id', clientId); // ← Utiliser snake_case pour la requête
         if (error) throw error;
-        return data || [];
+        return (data || []).map(appointmentFromSnakeCase);
       },
       async getAvailableSlots(startDate: string, endDate: string): Promise<AvailableSlot[]> {
         if (!supabase) return [];
 
-        const { data: settingsData, error: settingsError } = await supabase
-          .from('settings')
+        // Charger les availability_rules depuis leur table dédiée
+        const { data: rulesData, error: rulesError } = await supabase
+          .from('availability_rules')
           .select('*')
-          .maybeSingle();
-        if (settingsError) throw settingsError;
-        if (!settingsData) return [];
+          .eq('is_active', true);
+        if (rulesError) throw rulesError;
+        if (!rulesData || rulesData.length === 0) return [];
 
         const { data: appointmentsData, error: appointmentsError } = await supabase
           .from('appointments')
           .select('*');
         if (appointmentsError) throw appointmentsError;
-        if (!appointmentsData) return [];
 
         const slots: AvailableSlot[] = [];
         const start = new Date(startDate);
@@ -132,13 +186,11 @@ export const createSupabaseAdapter = (): DataAdapter => {
           const dayOfWeek = date.getDay();
           const dateStr = date.toISOString().split('T')[0];
 
-          const rules = settingsData.availabilityRules.filter(
-            rule => rule.dayOfWeek === dayOfWeek && rule.isActive
-          );
+          const rules = rulesData.filter(rule => rule.day_of_week === dayOfWeek);
 
           for (const rule of rules) {
-            const startHour = parseInt(rule.startTime.split(':')[0]);
-            const endHour = parseInt(rule.endTime.split(':')[0]);
+            const startHour = parseInt(rule.start_time.split(':')[0]);
+            const endHour = parseInt(rule.end_time.split(':')[0]);
 
             for (let hour = startHour; hour < endHour; hour++) {
               const slotStart = `${hour.toString().padStart(2, '0')}:00:00`;
@@ -147,9 +199,9 @@ export const createSupabaseAdapter = (): DataAdapter => {
               const slotStartTime = new Date(`${dateStr}T${slotStart}`).toISOString();
               const slotEndTime = new Date(`${dateStr}T${slotEnd}`).toISOString();
 
-              const isBooked = appointmentsData.some(apt => {
-                const aptStart = new Date(apt.startTime);
-                const aptEnd = new Date(apt.endTime);
+              const isBooked = appointmentsData?.some(apt => {
+                const aptStart = new Date(apt.start_time);
+                const aptEnd = new Date(apt.end_time);
                 const currentSlotStart = new Date(slotStartTime);
                 const currentSlotEnd = new Date(slotEndTime);
 
@@ -176,24 +228,26 @@ export const createSupabaseAdapter = (): DataAdapter => {
       },
       async create(appointment) {
         if (!supabase) throw new Error('Supabase not configured');
+        const dbAppointment = appointmentToSnakeCase(appointment);
         const { data, error } = await supabase
           .from('appointments')
-          .insert(appointment)
+          .insert(dbAppointment)
           .select()
           .single();
         if (error) throw error;
-        return data;
+        return appointmentFromSnakeCase(data);
       },
       async update(id: string, updates: Partial<Appointment>) {
         if (!supabase) throw new Error('Supabase not configured');
+        const dbUpdates = appointmentToSnakeCase(updates);
         const { data, error } = await supabase
           .from('appointments')
-          .update(updates)
+          .update(dbUpdates)
           .eq('id', id)
           .select()
           .single();
         if (error) throw error;
-        return data;
+        return appointmentFromSnakeCase(data);
       },
       async delete(id: string) {
         if (!supabase) throw new Error('Supabase not configured');
@@ -273,7 +327,7 @@ export const createSupabaseAdapter = (): DataAdapter => {
         if (!supabase) return [];
         const { data, error } = await supabase.from('messages').select('*');
         if (error) throw error;
-        return data || [];
+        return (data || []).map(messageFromSnakeCase);
       },
       async getById(id: string) {
         if (!supabase) return null;
@@ -283,26 +337,27 @@ export const createSupabaseAdapter = (): DataAdapter => {
           .eq('id', id)
           .maybeSingle();
         if (error) throw error;
-        return data;
+        return data ? messageFromSnakeCase(data) : null;
       },
       async getByUserId(userId: string) {
         if (!supabase) return [];
         const { data, error } = await supabase
           .from('messages')
           .select('*')
-          .or(`senderId.eq.${userId},recipientId.eq.${userId}`);
+          .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`);
         if (error) throw error;
-        return data || [];
+        return (data || []).map(messageFromSnakeCase);
       },
       async create(message) {
         if (!supabase) throw new Error('Supabase not configured');
+        const dbMessage = messageToSnakeCase(message);
         const { data, error } = await supabase
           .from('messages')
-          .insert(message)
+          .insert(dbMessage)
           .select()
           .single();
         if (error) throw error;
-        return data;
+        return messageFromSnakeCase(data);
       },
       async markAsRead(id: string) {
         if (!supabase) throw new Error('Supabase not configured');
@@ -494,6 +549,107 @@ export const createSupabaseAdapter = (): DataAdapter => {
       async delete(id: string) {
         if (!supabase) throw new Error('Supabase not configured');
         const { error } = await supabase.from('prescriptions').delete().eq('id', id);
+        if (error) throw error;
+      },
+    },
+    availabilityRules: {
+      async getAll() {
+        if (!supabase) return [];
+        const { data, error } = await supabase
+          .from('availability_rules')
+          .select('*')
+          .order('day_of_week', { ascending: true })
+          .order('start_time', { ascending: true });
+        if (error) throw error;
+        
+        // Convertir snake_case en camelCase
+        return (data || []).map(rule => ({
+          id: rule.id,
+          dayOfWeek: rule.day_of_week,
+          startTime: rule.start_time,
+          endTime: rule.end_time,
+          isActive: rule.is_active,
+        }));
+      },
+      async getById(id: string) {
+        if (!supabase) return null;
+        const { data, error } = await supabase
+          .from('availability_rules')
+          .select('*')
+          .eq('id', id)
+          .maybeSingle();
+        if (error) throw error;
+        if (!data) return null;
+        
+        // Convertir snake_case en camelCase
+        return {
+          id: data.id,
+          dayOfWeek: data.day_of_week,
+          startTime: data.start_time,
+          endTime: data.end_time,
+          isActive: data.is_active,
+        };
+      },
+      async create(rule) {
+        if (!supabase) throw new Error('Supabase not configured');
+        
+        // Convertir camelCase en snake_case pour Supabase
+        const dbRule = {
+          day_of_week: rule.dayOfWeek,
+          start_time: rule.startTime,
+          end_time: rule.endTime,
+          is_active: rule.isActive,
+        };
+        
+        const { data, error } = await supabase
+          .from('availability_rules')
+          .insert(dbRule)
+          .select()
+          .single();
+        if (error) throw error;
+        
+        // Convertir snake_case en camelCase pour le retour
+        return {
+          id: data.id,
+          dayOfWeek: data.day_of_week,
+          startTime: data.start_time,
+          endTime: data.end_time,
+          isActive: data.is_active,
+        };
+      },
+      async update(id: string, updates) {
+        if (!supabase) throw new Error('Supabase not configured');
+        
+        // Convertir camelCase en snake_case pour Supabase
+        const dbUpdates: any = {};
+        if (updates.dayOfWeek !== undefined) dbUpdates.day_of_week = updates.dayOfWeek;
+        if (updates.startTime !== undefined) dbUpdates.start_time = updates.startTime;
+        if (updates.endTime !== undefined) dbUpdates.end_time = updates.endTime;
+        if (updates.isActive !== undefined) dbUpdates.is_active = updates.isActive;
+        
+        const { data, error } = await supabase
+          .from('availability_rules')
+          .update(dbUpdates)
+          .eq('id', id)
+          .select()
+          .single();
+        if (error) throw error;
+        
+        // Convertir snake_case en camelCase pour le retour
+        return {
+          id: data.id,
+          dayOfWeek: data.day_of_week,
+          startTime: data.start_time,
+          endTime: data.end_time,
+          isActive: data.is_active,
+        };
+      },
+      async delete(id: string) {
+        if (!supabase) throw new Error('Supabase not configured');
+        const { error } = await supabase
+          .from('availability_rules')
+          .delete()
+          .eq('id', id);
         if (error) throw error;
       },
     },

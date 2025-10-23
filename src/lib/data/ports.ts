@@ -8,13 +8,19 @@ import type {
   Session,
   Prescription,
   AvailableSlot,
+  AvailabilityRule,
 } from './types';
+
+// ✅ AJOUT: Type pour la création d'utilisateur avec mot de passe optionnel
+export type CreateUserInput = Omit<User, 'id' | 'createdAt' | 'updatedAt'> & {
+  password?: string;
+};
 
 export interface UsersRepository {
   getAll(): Promise<User[]>;
   getById(id: string): Promise<User | null>;
   getByEmail(email: string): Promise<User | null>;
-  create(user: Omit<User, 'id' | 'createdAt' | 'updatedAt'>): Promise<User>;
+  create(user: CreateUserInput): Promise<User>; // ✅ MODIFIÉ: Utilise CreateUserInput au lieu de Omit<User, ...>
   update(id: string, user: Partial<User>): Promise<User>;
   delete(id: string): Promise<void>;
 }
@@ -78,6 +84,14 @@ export interface PrescriptionsRepository {
   delete(id: string): Promise<void>;
 }
 
+export interface AvailabilityRulesRepository {
+  getAll(): Promise<AvailabilityRule[]>;
+  getById(id: string): Promise<AvailabilityRule | null>;
+  create(rule: Omit<AvailabilityRule, 'id'>): Promise<AvailabilityRule>;
+  update(id: string, rule: Partial<AvailabilityRule>): Promise<AvailabilityRule>;
+  delete(id: string): Promise<void>;
+}
+
 export interface DataAdapter {
   users: UsersRepository;
   appointments: AppointmentsRepository;
@@ -87,4 +101,5 @@ export interface DataAdapter {
   consents: ConsentsRepository;
   sessions: SessionsRepository;
   prescriptions: PrescriptionsRepository;
+  availabilityRules?: AvailabilityRulesRepository; // Optional pour compatibilité
 }
