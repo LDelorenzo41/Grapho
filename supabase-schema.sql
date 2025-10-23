@@ -258,10 +258,15 @@ CREATE POLICY "Admins can view all users"
         )
     );
 
--- Les clients peuvent voir leur propre profil
-CREATE POLICY "Clients can view own profile"
+-- Les utilisateurs peuvent voir leur propre profil
+CREATE POLICY "Users can view own profile"
     ON users FOR SELECT
-    USING (auth.uid() = id);
+    USING (id = auth.uid());
+
+-- Les utilisateurs peuvent modifier leur propre profil
+CREATE POLICY "Users can update own profile"
+    ON users FOR UPDATE
+    USING (id = auth.uid());
 
 -- Les admins peuvent créer des utilisateurs
 CREATE POLICY "Admins can create users"
@@ -272,21 +277,6 @@ CREATE POLICY "Admins can create users"
             WHERE users.id = auth.uid() AND users.role = 'admin'
         )
     );
-
--- Les admins peuvent modifier tous les utilisateurs
-CREATE POLICY "Admins can update all users"
-    ON users FOR UPDATE
-    USING (
-        EXISTS (
-            SELECT 1 FROM users
-            WHERE users.id = auth.uid() AND users.role = 'admin'
-        )
-    );
-
--- Les clients peuvent modifier leur propre profil
-CREATE POLICY "Clients can update own profile"
-    ON users FOR UPDATE
-    USING (auth.uid() = id);
 
 -- ============================================
 -- POLICIES: appointments
@@ -305,9 +295,7 @@ CREATE POLICY "Admins can view all appointments"
 -- Les clients peuvent voir leurs propres rendez-vous
 CREATE POLICY "Clients can view own appointments"
     ON appointments FOR SELECT
-    USING (
-        client_id = auth.uid()
-    );
+    USING (client_id = auth.uid());
 
 -- Les admins peuvent créer des rendez-vous
 CREATE POLICY "Admins can create appointments"
@@ -325,7 +313,7 @@ CREATE POLICY "Clients can create own appointments"
     WITH CHECK (client_id = auth.uid());
 
 -- Les admins peuvent modifier tous les rendez-vous
-CREATE POLICY "Admins can update all appointments"
+CREATE POLICY "Admins can update appointments"
     ON appointments FOR UPDATE
     USING (
         EXISTS (
@@ -334,22 +322,11 @@ CREATE POLICY "Admins can update all appointments"
         )
     );
 
--- Les clients peuvent modifier leurs propres rendez-vous (sauf s'ils sont terminés)
-CREATE POLICY "Clients can update own appointments"
+-- Les clients peuvent annuler leurs propres rendez-vous
+CREATE POLICY "Clients can cancel own appointments"
     ON appointments FOR UPDATE
-    USING (
-        client_id = auth.uid() AND status != 'completed'
-    );
-
--- Les admins peuvent supprimer des rendez-vous
-CREATE POLICY "Admins can delete appointments"
-    ON appointments FOR DELETE
-    USING (
-        EXISTS (
-            SELECT 1 FROM users
-            WHERE users.id = auth.uid() AND users.role = 'admin'
-        )
-    );
+    USING (client_id = auth.uid())
+    WITH CHECK (status = 'cancelled');
 
 -- ============================================
 -- POLICIES: documents
@@ -365,16 +342,33 @@ CREATE POLICY "Admins can view all documents"
         )
     );
 
--- Les clients peuvent voir les documents selon la visibilité
-CREATE POLICY "Clients can view visible documents"
+-- Les utilisateurs peuvent voir leurs propres documents
+CREATE POLICY "Users can view own documents"
+    ON documents FOR SELECT
+    USING (user_id = auth.uid());
+
+-- Les utilisateurs peuvent voir les documents visibles pour tous
+CREATE POLICY "Users can view public documents"
+    ON documents FOR SELECT
+    USING (visibility = 'all');
+
+-- Les clients peuvent voir les documents visibles pour les clients
+CREATE POLICY "Clients can view client documents"
     ON documents FOR SELECT
     USING (
-        visibility = 'all'
-        OR (visibility = 'clients' AND EXISTS (
-            SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'client'
-        ))
-        OR (visibility = 'specific' AND auth.uid() = ANY(visible_to_user_ids))
-        OR user_id = auth.uid()
+        visibility = 'clients' AND
+        EXISTS (
+            SELECT 1 FROM users
+            WHERE users.id = auth.uid() AND users.role = 'client'
+        )
+    );
+
+-- Les utilisateurs peuvent voir les documents spécifiques auxquels ils ont accès
+CREATE POLICY "Users can view specific documents"
+    ON documents FOR SELECT
+    USING (
+        visibility = 'specific' AND
+        auth.uid() = ANY(visible_to_user_ids)
     );
 
 -- Les admins peuvent créer des documents
@@ -570,43 +564,43 @@ CREATE OR REPLACE FUNCTION get_available_slots(
 )
 RETURNS TABLE (
     slot_date DATE,
-    start_time TIME,
-    end_time TIME
+    slot_start TIME,
+    slot_end TIME
 ) AS $$
 DECLARE
-    current_date DATE := start_date;
+    loop_date DATE := start_date;
     rule RECORD;
-    current_time TIME;
-    slot_end TIME;
+    slot_start_time TIME;
+    slot_end_time TIME;
 BEGIN
-    WHILE current_date <= end_date LOOP
+    WHILE loop_date <= end_date LOOP
         FOR rule IN
             SELECT * FROM availability_rules
-            WHERE day_of_week = EXTRACT(DOW FROM current_date)::INTEGER
+            WHERE day_of_week = EXTRACT(DOW FROM loop_date)::INTEGER
             AND is_active = TRUE
         LOOP
-            current_time := rule.start_time;
-            WHILE current_time + (slot_duration || ' minutes')::INTERVAL <= rule.end_time LOOP
-                slot_end := current_time + (slot_duration || ' minutes')::INTERVAL;
+            slot_start_time := rule.start_time;
+            WHILE slot_start_time + (slot_duration || ' minutes')::INTERVAL <= rule.end_time LOOP
+                slot_end_time := slot_start_time + (slot_duration || ' minutes')::INTERVAL;
 
                 -- Vérifier si le créneau n'est pas déjà pris
                 IF NOT EXISTS (
-                    SELECT 1 FROM appointments
-                    WHERE DATE(start_time) = current_date
-                    AND TIME(start_time) < slot_end
-                    AND TIME(end_time) > current_time
-                    AND status != 'cancelled'
+                    SELECT 1 FROM appointments AS appt
+                    WHERE DATE(appt.start_time) = loop_date
+                    AND appt.start_time::TIME < slot_end_time
+                    AND appt.end_time::TIME > slot_start_time
+                    AND appt.status != 'cancelled'
                 ) THEN
-                    slot_date := current_date;
-                    start_time := current_time;
-                    end_time := slot_end;
+                    slot_date := loop_date;
+                    slot_start := slot_start_time;
+                    slot_end := slot_end_time;
                     RETURN NEXT;
                 END IF;
 
-                current_time := slot_end;
+                slot_start_time := slot_end_time;
             END LOOP;
         END LOOP;
-        current_date := current_date + 1;
+        loop_date := loop_date + 1;
     END LOOP;
 END;
 $$ LANGUAGE plpgsql;

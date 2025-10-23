@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mail, AlertCircle } from 'lucide-react';
+import { Mail, Lock, AlertCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { isMockMode } from '../lib/data';
 
 export function Login() {
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
@@ -17,14 +18,14 @@ export function Login() {
     setLoading(true);
 
     try {
-      const loggedInUser = await login(email);
+      const loggedInUser = await login(email, password);
       if (loggedInUser?.role === 'admin') {
         navigate('/admin/dashboard');
       } else {
         navigate('/client/dashboard');
       }
     } catch (err) {
-      setError('Email non reconnu. Veuillez réessayer.');
+      setError('Email ou mot de passe incorrect. Veuillez réessayer.');
     } finally {
       setLoading(false);
     }
@@ -56,61 +57,70 @@ export function Login() {
             </div>
           )}
 
-          {!isMockMode && (
-            <div className="mb-6 bg-gray-50 border border-gray-200 rounded-lg p-4">
-              <p className="font-body text-sm text-gray-700">
-                Un lien magique sera envoyé à votre adresse email pour vous connecter en toute sécurité.
-              </p>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="email" className="block font-body text-sm font-medium text-text mb-2">
+              <label htmlFor="email" className="block font-body text-sm font-medium text-gray-700 mb-2">
                 Adresse email
               </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
-                  type="email"
                   id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  className="font-body pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                  placeholder="votre@email.com"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="password" className="block font-body text-sm font-medium text-gray-700 mb-2">
+                Mot de passe
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autoComplete="current-password"
                   required
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent font-body"
-                  placeholder="votre.email@example.com"
+                  minLength={6}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="font-body pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                  placeholder="••••••••"
                 />
               </div>
             </div>
 
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                <p className="font-body text-sm text-red-700">{error}</p>
+              <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm font-body">
+                {error}
               </div>
             )}
 
             <button
               type="submit"
-              disabled={loading || (!isMockMode)}
-              className="w-full px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition font-body font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={loading}
+              className="w-full bg-primary hover:bg-primary-dark text-white font-body font-medium py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Connexion...' : isMockMode ? 'Se connecter' : 'Envoyer le lien magique'}
+              {loading ? 'Connexion...' : 'Se connecter'}
             </button>
-
-            {!isMockMode && (
-              <p className="text-center font-body text-xs text-gray-500 mt-3">
-                Cette fonctionnalité sera disponible lors de l'activation de Supabase
-              </p>
-            )}
           </form>
-        </div>
 
-        <p className="text-center font-body text-sm text-gray-600 mt-6">
-          Pas encore de compte ?{' '}
-          <a href="/contact" className="text-primary hover:underline">
-            Contactez-nous
-          </a>
-        </p>
+          <p className="mt-6 text-center font-body text-sm text-gray-600">
+            Pas encore de compte ?{' '}
+            <a href="/contact" className="text-primary hover:text-primary-dark font-medium">
+              Contactez-nous
+            </a>
+          </p>
+        </div>
       </div>
     </div>
   );

@@ -66,7 +66,6 @@ export interface AvailableSlot {
 
 export interface Settings {
   id: string;
-  availabilityRules: AvailabilityRule[];
   emailTemplates: {
     appointmentConfirmation: string;
     appointmentReminder: string;
