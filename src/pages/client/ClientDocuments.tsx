@@ -111,17 +111,17 @@ export function ClientDocuments() {
         {receivedDocs.length > 0 && (
           <div className="mb-8">
             <h2 className="font-title text-2xl font-bold text-text mb-4">Documents reçus</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               {receivedDocs.map(doc => (
-                <div key={doc.id} className="bg-green-50 rounded-lg shadow-sm border-2 border-green-200 p-6">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start space-x-4 flex-1">
-                      <div className="flex-shrink-0 w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                        <FileText className="w-6 h-6 text-green-600" />
+                <div key={doc.id} className="bg-green-50 rounded-lg shadow-sm border-2 border-green-200 p-4 sm:p-6">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                    <div className="flex items-start space-x-3 sm:space-x-4 flex-1 min-w-0">
+                      <div className="flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                        <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-body font-semibold text-text truncate">{doc.fileName}</h3>
-                        <p className="font-body text-sm text-gray-600">{formatFileSize(doc.fileSize)}</p>
+                        <h3 className="font-body font-semibold text-text truncate text-sm sm:text-base">{doc.fileName}</h3>
+                        <p className="font-body text-xs sm:text-sm text-gray-600">{formatFileSize(doc.fileSize)}</p>
                         {doc.category && (
                           <span className="inline-block mt-2 px-2 py-1 bg-green-100 text-green-700 text-xs rounded">
                             {doc.category}
@@ -134,10 +134,11 @@ export function ClientDocuments() {
                     </div>
                     <button
                       onClick={() => handleDownload(doc)}
-                      className="ml-2 p-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+                      className="self-end sm:self-start flex-shrink-0 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm font-body flex items-center space-x-2"
                       title="Télécharger"
                     >
                       <Download className="w-4 h-4" />
+                      <span className="hidden sm:inline">Télécharger</span>
                     </button>
                   </div>
                 </div>
@@ -153,17 +154,17 @@ export function ClientDocuments() {
             <p className="font-body text-gray-600">Aucun document envoyé</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             {myUploadedDocs.map(doc => (
-              <div key={doc.id} className="bg-white rounded-lg shadow-sm border p-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start space-x-4 flex-1">
-                    <div className="flex-shrink-0 w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                      <FileText className="w-6 h-6 text-primary" />
+              <div key={doc.id} className="bg-white rounded-lg shadow-sm border p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                  <div className="flex items-start space-x-3 sm:space-x-4 flex-1 min-w-0">
+                    <div className="flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                      <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-body font-semibold text-text truncate">{doc.fileName}</h3>
-                      <p className="font-body text-sm text-gray-600">{formatFileSize(doc.fileSize)}</p>
+                      <h3 className="font-body font-semibold text-text truncate text-sm sm:text-base">{doc.fileName}</h3>
+                      <p className="font-body text-xs sm:text-sm text-gray-600">{formatFileSize(doc.fileSize)}</p>
                       {doc.category && (
                         <span className="inline-block mt-2 px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded">
                           {doc.category}
@@ -176,10 +177,11 @@ export function ClientDocuments() {
                   </div>
                   <button
                     onClick={() => handleDownload(doc)}
-                    className="ml-2 p-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
+                    className="self-end sm:self-start flex-shrink-0 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition text-sm font-body flex items-center space-x-2"
                     title="Télécharger"
                   >
                     <Download className="w-4 h-4" />
+                    <span className="hidden sm:inline">Télécharger</span>
                   </button>
                 </div>
               </div>

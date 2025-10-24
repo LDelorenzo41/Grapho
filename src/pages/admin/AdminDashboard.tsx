@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Users, Calendar as CalendarIcon, FileText, Plus, X, Edit2, Trash2 } from 'lucide-react';
-import { dataAdapter, type User, type Appointment } from '../../lib/data';
+import { useAuth } from '../../contexts/AuthContext';
+import { dataAdapter, type User, type Appointment, type Document } from '../../lib/data';
 import { Calendar } from '../../components/Calendar/Calendar';
 
 export function AdminDashboard() {
+  const { user } = useAuth();
   const [clients, setClients] = useState<User[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -32,12 +35,14 @@ export function AdminDashboard() {
 
   const loadData = async () => {
     try {
-      const [allUsers, allAppts] = await Promise.all([
+      const [allUsers, allAppts, allDocs] = await Promise.all([
         dataAdapter.users.getAll(),
         dataAdapter.appointments.getAll(),
+        dataAdapter.documents.getAll(),
       ]);
       setClients(allUsers.filter(u => u.role === 'client'));
       setAppointments(allAppts);
+      setDocuments(allDocs);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -129,6 +134,10 @@ export function AdminDashboard() {
     apt.status === 'scheduled' && new Date(apt.startTime) > new Date()
   );
 
+  // Calculer les documents déposés (par l'admin) et reçus (des clients)
+  const myDocuments = documents.filter(doc => user && doc.uploadedBy === user.id);
+  const receivedDocuments = documents.filter(doc => user && doc.uploadedBy !== user.id);
+
   if (loading) {
     return <div className="py-16 text-center"><p className="font-body text-gray-600">Chargement...</p></div>;
   }
@@ -175,7 +184,14 @@ export function AdminDashboard() {
               <FileText className="w-6 h-6 text-primary group-hover:scale-110 transition" />
               <h3 className="font-title text-lg font-bold text-text group-hover:text-primary transition">Documents</h3>
             </div>
-            <p className="font-body text-3xl font-bold text-text">{appointments.length}</p>
+            <div className="flex items-baseline space-x-2">
+              <p className="font-body text-3xl font-bold text-text">{myDocuments.length}</p>
+              <span className="font-body text-sm text-gray-600">déposés</span>
+            </div>
+            <div className="flex items-baseline space-x-2 mt-1">
+              <p className="font-body text-2xl font-bold text-blue-600">{receivedDocuments.length}</p>
+              <span className="font-body text-sm text-gray-600">reçus</span>
+            </div>
             <p className="font-body text-sm text-gray-600 mt-2">Gérer les documents →</p>
           </Link>
         </div>
