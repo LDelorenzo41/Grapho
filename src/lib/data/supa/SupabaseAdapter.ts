@@ -379,31 +379,87 @@ export const createSupabaseAdapter = (): DataAdapter => {
           return {
             id: 'default',
             availabilityRules: [],
-            emailTemplates: { appointmentConfirmation: '', appointmentReminder: '' },
+            emailTemplates: { 
+              appointmentConfirmation: 'Votre rendez-vous est confirmé.', 
+              appointmentReminder: 'Rappel de votre rendez-vous.' 
+            },
             updatedAt: new Date().toISOString(),
           };
         }
+        
         const { data, error } = await supabase
           .from('settings')
           .select('*')
           .maybeSingle();
+          
         if (error) throw error;
-        return data || {
-          id: 'default',
-          availabilityRules: [],
-          emailTemplates: { appointmentConfirmation: '', appointmentReminder: '' },
-          updatedAt: new Date().toISOString(),
+        
+        if (!data) {
+          return {
+            id: 'default',
+            availabilityRules: [],
+            emailTemplates: { 
+              appointmentConfirmation: 'Votre rendez-vous est confirmé.', 
+              appointmentReminder: 'Rappel de votre rendez-vous.' 
+            },
+            updatedAt: new Date().toISOString(),
+          };
+        }
+        
+        // ✅ TRANSFORMATION : Convertir de snake_case (DB) vers camelCase (TypeScript)
+        return {
+          id: data.id,
+          availabilityRules: data.availability_rules || [],
+          emailTemplates: data.email_templates || {
+            appointmentConfirmation: data.email_template_appointment_confirmation || '',
+            appointmentReminder: data.email_template_appointment_reminder || '',
+          },
+          updatedAt: data.updated_at,
         };
       },
+      
       async update(updates: Partial<Settings>) {
         if (!supabase) throw new Error('Supabase not configured');
+        
+        // ✅ TRANSFORMATION : Convertir de camelCase (TypeScript) vers snake_case (DB)
+        const dbUpdates: any = {
+          updated_at: new Date().toISOString(),
+        };
+        
+        if (updates.availabilityRules !== undefined) {
+          dbUpdates.availability_rules = updates.availabilityRules;
+        }
+        
+        if (updates.emailTemplates !== undefined) {
+          dbUpdates.email_templates = updates.emailTemplates;
+        }
+        
+        // Récupérer l'ID existant ou utiliser celui fourni
+        const { data: existing } = await supabase
+          .from('settings')
+          .select('id')
+          .maybeSingle();
+        
+        const settingsId = existing?.id || updates.id || '42e47c99-cf09-4cf6-84ae-dfc9e417c0d9';
+        
         const { data, error } = await supabase
           .from('settings')
-          .upsert({ id: 'default', ...updates })
+          .upsert({ id: settingsId, ...dbUpdates })
           .select()
           .single();
+          
         if (error) throw error;
-        return data;
+        
+        // ✅ TRANSFORMATION : Retourner au format camelCase
+        return {
+          id: data.id,
+          availabilityRules: data.availability_rules || [],
+          emailTemplates: data.email_templates || {
+            appointmentConfirmation: '',
+            appointmentReminder: '',
+          },
+          updatedAt: data.updated_at,
+        };
       },
     },
     consents: {
