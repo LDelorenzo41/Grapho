@@ -79,14 +79,17 @@ export function ClientDashboard() {
             <p className="font-body text-sm text-gray-600 mt-1">documents disponibles</p>
           </Link>
 
-          <div className="bg-white rounded-lg shadow-sm border p-6">
+          <Link
+            to="/client/messages"
+            className="bg-white rounded-lg shadow-sm border p-6 hover:shadow-md transition"
+          >
             <div className="flex items-center space-x-3 mb-3">
               <MessageSquare className="w-6 h-6 text-primary" />
               <h3 className="font-title text-lg font-bold text-text">Messages</h3>
             </div>
             <p className="font-body text-3xl font-bold text-text">{unreadMessages.length}</p>
             <p className="font-body text-sm text-gray-600 mt-1">non lus</p>
-          </div>
+          </Link>
         </div>
 
         {nextAppointment && (
