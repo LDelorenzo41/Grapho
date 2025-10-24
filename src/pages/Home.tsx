@@ -72,7 +72,7 @@ export function Home() {
       <section className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="font-title text-3xl font-bold text-text text-center mb-12">
-            Comment ça fonctionne ?
+            🧩 Comment ça fonctionne ?
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="text-center p-6">
@@ -109,63 +109,99 @@ export function Home() {
       </section>
 
       <section className="py-16 bg-gray-50">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="font-title text-3xl font-bold text-text mb-6 text-center">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="font-title text-3xl font-bold text-text mb-12 text-center">
             🖋️ Pourquoi consulter un graphothérapeute ?
           </h2>
-          <div className="font-body text-lg text-gray-700 space-y-4 text-left">
-            <p>
-              La graphothérapie est une rééducation de l'écriture manuscrite.
-              Elle s'adresse aux enfants, adolescents et adultes qui rencontrent des difficultés d'écriture :
-              lenteur, douleurs, illisibilité, fatigue...
-            </p>
-            <p>
-              L'objectif n'est pas de « ré-apprendre à écrire », mais d'aider chacun à retrouver le plaisir et l'aisance du geste graphique.
-À travers des exercices ludiques et progressifs, le graphothérapeute aide à corriger les automatismes gênants, à libérer le mouvement et à renforcer la confiance en soi dans l'acte d'écriture.
-
-            </p>
-          </div>
-          <div className="text-center">
-            <Link
-              to="/methode"
-              className="inline-block mt-8 px-6 py-3 border-2 border-primary text-primary rounded-lg hover:bg-primary hover:text-white transition font-body font-semibold"
-            >
-              En savoir plus sur la méthode
-            </Link>
+          
+          <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+              {/* Image à gauche */}
+              <div className="order-1">
+                <img
+                  src="/image2Confiance.jpeg"
+                  alt="Séance de graphothérapie avec un enfant"
+                  className="w-full h-full object-cover"
+                  style={{ minHeight: '400px', maxHeight: '600px' }}
+                />
+              </div>
+              
+              {/* Contenu à droite */}
+              <div className="order-2 p-8 md:p-12">
+                <div className="font-body text-lg text-gray-700 space-y-4">
+                  <p>
+                    La graphothérapie est une rééducation de l'écriture manuscrite.
+                    Elle s'adresse aux enfants, adolescents et adultes qui rencontrent des difficultés d'écriture :
+                    lenteur, douleurs, illisibilité, fatigue...
+                  </p>
+                  <p>
+                    L'objectif n'est pas de « ré-apprendre à écrire », mais d'aider chacun à retrouver le plaisir et l'aisance du geste graphique.
+                    À travers des exercices ludiques et progressifs, le graphothérapeute aide à corriger les automatismes gênants, à libérer le mouvement et à renforcer la confiance en soi dans l'acte d'écriture.
+                  </p>
+                </div>
+                
+                <div className="mt-8">
+                  <Link
+                    to="/methode"
+                    className="inline-block px-6 py-3 border-2 border-primary text-primary rounded-lg hover:bg-primary hover:text-white transition font-body font-semibold"
+                  >
+                    En savoir plus sur la méthode
+                  </Link>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
       <section className="py-16 bg-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="font-title text-3xl font-bold text-text mb-6 text-center">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="font-title text-3xl font-bold text-text mb-12 text-center">
             🎯 Quand consulter un graphothérapeute ?
           </h2>
-          <div className="font-body text-lg text-gray-700 space-y-4 text-left">
-            <p>
-              Il peut être utile de consulter un graphothérapeute si vous ou votre enfant :
-            </p>
-            <ul className="max-w-2xl mx-auto space-y-3">
-              <li className="flex items-start">
-                <span className="text-primary mr-3 mt-1">•</span>
-                <span>Ressentez de la douleur, de la tension ou de la fatigue en écrivant ;</span>
-              </li>
-              <li className="flex items-start">
-                <span className="text-primary mr-3 mt-1">•</span>
-                <span>Trouvez que l'écriture est difficile à lire ou trop lente ;</span>
-              </li>
-              <li className="flex items-start">
-                <span className="text-primary mr-3 mt-1">•</span>
-                <span>Avez du mal à tenir correctement le crayon ;</span>
-              </li>
-              <li className="flex items-start">
-                <span className="text-primary mr-3 mt-1">•</span>
-                <span>Manquez de plaisir ou de confiance dans l'acte d'écrire.</span>
-              </li>
-            </ul>
-            <p className="pt-2">
-              Chaque difficulté est unique. Le rôle du graphothérapeute est de comprendre l'origine du problème et de proposer un accompagnement sur mesure, toujours dans la douceur et la bienveillance.
-            </p>
+          
+          <div className="bg-gradient-to-br from-primary/5 to-secondary/5 rounded-2xl shadow-lg overflow-hidden">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+              {/* Contenu à gauche */}
+              <div className="order-2 md:order-1 p-8 md:p-12">
+                <div className="font-body text-lg text-gray-700 space-y-4">
+                  <p>
+                    Il peut être utile de consulter un graphothérapeute si vous ou votre enfant :
+                  </p>
+                  <ul className="space-y-3">
+                    <li className="flex items-start">
+                      <span className="text-primary mr-3 mt-1">•</span>
+                      <span>Ressentez de la douleur, de la tension ou de la fatigue en écrivant ;</span>
+                    </li>
+                    <li className="flex items-start">
+                      <span className="text-primary mr-3 mt-1">•</span>
+                      <span>Trouvez que l'écriture est difficile à lire ou trop lente ;</span>
+                    </li>
+                    <li className="flex items-start">
+                      <span className="text-primary mr-3 mt-1">•</span>
+                      <span>Avez du mal à tenir correctement le crayon ;</span>
+                    </li>
+                    <li className="flex items-start">
+                      <span className="text-primary mr-3 mt-1">•</span>
+                      <span>Manquez de plaisir ou de confiance dans l'acte d'écrire.</span>
+                    </li>
+                  </ul>
+                  <p className="pt-2">
+                    Chaque difficulté est unique. Le rôle du graphothérapeute est de comprendre l'origine du problème et de proposer un accompagnement sur mesure, toujours dans la douceur et la bienveillance.
+                  </p>
+                </div>
+              </div>
+              
+              {/* Image à droite */}
+              <div className="order-1 md:order-2">
+                <img
+                  src="/image4Ecriture.jpg"
+                  alt="Enfant écrivant avec concentration"
+                  className="w-full h-full object-cover"
+                  style={{ minHeight: '400px', maxHeight: '600px' }}
+                />
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -173,7 +209,7 @@ export function Home() {
       <section className="py-16 bg-gradient-to-br from-primary/10 to-secondary/10">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="font-title text-3xl font-bold text-text mb-4">
-            Prêt à retrouver le plaisir d'écrire ?
+            ✨ Prêt à retrouver le plaisir d'écrire ?
           </h2>
           <p className="font-body text-lg text-gray-700 mb-8">
             N'hésitez pas à me contacter pour un premier échange ou pour prendre rendez-vous.
