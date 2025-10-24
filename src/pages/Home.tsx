@@ -1,7 +1,11 @@
 import { Link } from 'react-router-dom';
-import { Calendar, FileText, Mail } from 'lucide-react';
+import { Calendar, FileText, Mail, Info } from 'lucide-react';
+import { useState } from 'react';
+import { BioModal } from '../components/BioModal';
 
 export function Home() {
+  const [isBioModalOpen, setIsBioModalOpen] = useState(false);
+
   return (
     <div>
       <section className="bg-gradient-to-br from-primary/10 to-secondary/10 py-20">
@@ -9,9 +13,10 @@ export function Home() {
           <div className="text-center mb-16">
             <h1 className="font-title text-5xl md:text-6xl font-bold text-text mb-6">
               Retrouvez le plaisir d'écrire
+
             </h1>
             <p className="font-body text-xl text-gray-700 mb-8 max-w-3xl mx-auto">
-              Un accompagnement personnalisé en graphothérapie pour les enfants et adultes qui souhaitent améliorer leur écriture.
+              Un accompagnement personnalisé en graphothérapie pour les enfants et adultes qui souhaitent améliorer leur écriture et retrouver le plaisir d'écrire, avec confort et confiance
             </p>
             <Link
               to="/contact"
@@ -38,6 +43,17 @@ export function Home() {
                   <p>
                     Son approche, à la fois bienveillante et structurée, repose sur la confiance, la progression et la valorisation des réussites.
                   </p>
+                </div>
+                
+                {/* Bouton En savoir plus */}
+                <div className="mt-6">
+                  <button
+                    onClick={() => setIsBioModalOpen(true)}
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition font-body font-semibold"
+                  >
+                    <Info className="w-5 h-5" />
+                    En savoir plus sur mon parcours
+                  </button>
                 </div>
               </div>
               <div className="order-1 md:order-2">
@@ -114,6 +130,9 @@ export function Home() {
           </Link>
         </div>
       </section>
+
+      {/* Modal Bio */}
+      <BioModal isOpen={isBioModalOpen} onClose={() => setIsBioModalOpen(false)} />
     </div>
   );
 }

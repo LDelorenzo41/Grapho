@@ -15,12 +15,21 @@ const faqs = [
     answer: 'La graphothérapie n\'est pas remboursée par la Sécurité sociale. Cependant, certaines mutuelles prennent en charge tout ou partie des séances au titre des médecines douces. Nous vous invitons à vous renseigner auprès de votre mutuelle.',
   },
   {
+    question: 'La graphothérapie remplace-t-elle un suivi orthophonique ou psychomoteur ?',
+    answer: 'Non, absolument pas ! Elle peut être complémentaire d’autres suivis, selon les besoins, mais ne se substitue pas à un suivi chez une orthophoniste ou une psychomotricienne. ',
+  },
+  {
     question: 'Quelle est la différence entre un graphothérapeute et un ergothérapeute ?',
     answer: 'Le graphothérapeute est spécialisé uniquement dans la rééducation de l\'écriture manuscrite. L\'ergothérapeute a un champ d\'action plus large et intervient sur l\'ensemble des gestes du quotidien. Les deux professionnels peuvent travailler en complémentarité.',
   },
   {
     question: 'Faut-il une prescription médicale ?',
     answer: 'Non, aucune prescription médicale n\'est nécessaire pour consulter un graphothérapeute. Cependant, il peut être utile d\'en informer le médecin traitant ou le pédiatre.',
+  },
+
+{
+    question: 'Faut-il être « mauvais en écriture » pour consulter ?',
+    answer: 'Non. Certaines personnes consultent simplement pour améliorer leur confort ou leur vitesse d’écriture.',
   },
   {
     question: 'Mon enfant peut-il continuer à écrire pendant la rééducation ?',
