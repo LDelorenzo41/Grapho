@@ -24,6 +24,8 @@ import { AdminClients } from './pages/admin/AdminClients';
 import { AdminSettings } from './pages/admin/AdminSettings';
 import { AdminDocuments } from './pages/admin/AdminDocuments';
 import { ClientDetail } from './pages/admin/ClientDetail';
+import { AdminMessages } from './pages/admin/AdminMessages';
+import { ClientMessages } from './pages/client/ClientMessages';
 import { ResetPassword } from './pages/ResetPassword';
 
 function App() {
@@ -75,6 +77,14 @@ function App() {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/client/messages"
+              element={
+                <ProtectedRoute allowedRoles={['client']}>
+                  <ClientMessages />
+                </ProtectedRoute>
+              }
+            />
 
             <Route
               path="/admin/dashboard"
@@ -121,6 +131,14 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <ClientDetail />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/messages"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminMessages />
                 </ProtectedRoute>
               }
             />

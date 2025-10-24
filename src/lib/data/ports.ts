@@ -50,6 +50,7 @@ export interface MessagesRepository {
   getById(id: string): Promise<Message | null>;
   getByUserId(userId: string): Promise<Message[]>;
   create(message: Omit<Message, 'id' | 'sentAt'>): Promise<Message>;
+  update(id: string, message: Partial<Message>): Promise<Message>; // 👈 LIGNE AJOUTÉE
   markAsRead(id: string): Promise<void>;
   delete(id: string): Promise<void>;
 }

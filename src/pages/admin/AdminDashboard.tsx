@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Users, Calendar as CalendarIcon, FileText, Plus, X, Edit2, Trash2 } from 'lucide-react';
+import { Users, Calendar as CalendarIcon, FileText, Plus, X, Edit2, Trash2, MessageSquare } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { dataAdapter, type User, type Appointment, type Document } from '../../lib/data';
+import { dataAdapter, type User, type Appointment, type Document, type Message } from '../../lib/data';
 import { Calendar } from '../../components/Calendar/Calendar';
 
 export function AdminDashboard() {
@@ -10,6 +10,7 @@ export function AdminDashboard() {
   const [clients, setClients] = useState<User[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -34,21 +35,23 @@ export function AdminDashboard() {
   }, []);
 
   const loadData = async () => {
-    try {
-      const [allUsers, allAppts, allDocs] = await Promise.all([
-        dataAdapter.users.getAll(),
-        dataAdapter.appointments.getAll(),
-        dataAdapter.documents.getAll(),
-      ]);
-      setClients(allUsers.filter(u => u.role === 'client'));
-      setAppointments(allAppts);
-      setDocuments(allDocs);
-    } catch (error) {
-      console.error('Error loading data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    const [allUsers, allAppts, allDocs, allMsgs] = await Promise.all([
+      dataAdapter.users.getAll(),
+      dataAdapter.appointments.getAll(),
+      dataAdapter.documents.getAll(),
+      dataAdapter.messages.getAll(),
+    ]);
+    setClients(allUsers.filter(u => u.role === 'client'));
+    setAppointments(allAppts);
+    setDocuments(allDocs);
+    setMessages(allMsgs.filter(m => user && m.senderId === user.id));
+  } catch (error) {
+    console.error('Error loading data:', error);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleAddAppointment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -155,7 +158,7 @@ export function AdminDashboard() {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Link
             to="/admin/clients"
             className="bg-white rounded-lg shadow-sm border p-6 hover:shadow-md transition cursor-pointer group"
@@ -186,13 +189,25 @@ export function AdminDashboard() {
             </div>
             <div className="flex items-baseline space-x-2">
               <p className="font-body text-3xl font-bold text-text">{myDocuments.length}</p>
-              <span className="font-body text-sm text-gray-600">déposés</span>
+              <span className="font-body text-sm text-gray-600">déposé(s)</span>
             </div>
             <div className="flex items-baseline space-x-2 mt-1">
               <p className="font-body text-2xl font-bold text-blue-600">{receivedDocuments.length}</p>
-              <span className="font-body text-sm text-gray-600">reçus</span>
-            </div>
+              <span className="font-body text-sm text-gray-600">reçu(s)</span>
+              
+        </div>
             <p className="font-body text-sm text-gray-600 mt-2">Gérer les documents →</p>
+          </Link>
+          <Link
+            to="/admin/messages"
+            className="bg-white rounded-lg shadow-sm border p-6 hover:shadow-md transition cursor-pointer group"
+          >
+            <div className="flex items-center space-x-3 mb-2">
+              <MessageSquare className="w-6 h-6 text-primary group-hover:scale-110 transition" />
+              <h3 className="font-title text-lg font-bold text-text group-hover:text-primary transition">Messages</h3>
+            </div>
+            <p className="font-body text-3xl font-bold text-text">{messages.length}</p>
+            <p className="font-body text-sm text-gray-600 mt-2">Gérer les messages →</p>
           </Link>
         </div>
 

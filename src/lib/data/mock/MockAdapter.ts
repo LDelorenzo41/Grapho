@@ -9,6 +9,7 @@ import type {
   Session,
   Prescription,
   AvailableSlot,
+  AvailabilityRule,  // 👈 Vérifiez que celui-ci est bien présent
 } from '../types';
 
 const STORAGE_KEY = 'graphotherapie_mock_data';
@@ -103,6 +104,7 @@ class MockStorage {
           userId: 'admin-1',
           uploadedBy: 'admin-1',
           fileName: 'bilan_initial.pdf',
+          filePath: 'admin-1/bilan_initial.pdf',
           fileType: 'application/pdf',
           fileSize: 524288,
           uploadedAt: now,
@@ -115,6 +117,7 @@ class MockStorage {
           userId: 'client-1',
           uploadedBy: 'client-1',
           fileName: 'ordonnance_medicale.pdf',
+          filePath: 'client-1/ordonnance_medicale.pdf',
           fileType: 'application/pdf',
           fileSize: 389120,
           uploadedAt: now,
@@ -480,6 +483,17 @@ export const createMockAdapter = (): DataAdapter => {
         storage.setData(data);
         return newMessage;
       },
+      async update(id: string, updates: Partial<Message>) {
+        const data = storage.getData();
+        const index = data.messages.findIndex(m => m.id === id);
+        if (index === -1) throw new Error('Message not found');
+        data.messages[index] = {
+          ...data.messages[index],
+          ...updates,
+        };
+        storage.setData(data);
+        return data.messages[index];
+      },
       async markAsRead(id: string) {
         const data = storage.getData();
         const message = data.messages.find(m => m.id === id);
@@ -614,6 +628,41 @@ export const createMockAdapter = (): DataAdapter => {
       async delete(id: string) {
         const data = storage.getData();
         data.prescriptions = data.prescriptions.filter(p => p.id !== id);
+        storage.setData(data);
+      },
+    },
+    availabilityRules: {
+      async getAll() {
+        return storage.getData().settings.availabilityRules;
+      },
+      async getById(id: string) {
+        const rules = storage.getData().settings.availabilityRules;
+        return rules.find(r => r.id === id) || null;
+      },
+      async create(rule) {
+        const newRule = {
+          ...rule,
+          id: `rule-${Date.now()}`,
+        };
+        const data = storage.getData();
+        data.settings.availabilityRules.push(newRule);
+        storage.setData(data);
+        return newRule;
+      },
+      async update(id: string, updates: Partial<AvailabilityRule>) {
+        const data = storage.getData();
+        const index = data.settings.availabilityRules.findIndex(r => r.id === id);
+        if (index === -1) throw new Error('Availability rule not found');
+        data.settings.availabilityRules[index] = {
+          ...data.settings.availabilityRules[index],
+          ...updates,
+        };
+        storage.setData(data);
+        return data.settings.availabilityRules[index];
+      },
+      async delete(id: string) {
+        const data = storage.getData();
+        data.settings.availabilityRules = data.settings.availabilityRules.filter(r => r.id !== id);
         storage.setData(data);
       },
     },

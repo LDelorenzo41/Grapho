@@ -363,6 +363,18 @@ export const createSupabaseAdapter = (): DataAdapter => {
         if (error) throw error;
         return messageFromSnakeCase(data);
       },
+      async update(id: string, updates: Partial<Message>) {
+        if (!supabase) throw new Error('Supabase not configured');
+        const dbUpdates = messageToSnakeCase(updates as any);
+        const { data, error } = await supabase
+          .from('messages')
+          .update(dbUpdates)
+          .eq('id', id)
+          .select()
+          .single();
+        if (error) throw error;
+        return messageFromSnakeCase(data);
+      },
       async markAsRead(id: string) {
         if (!supabase) throw new Error('Supabase not configured');
         const { error } = await supabase
