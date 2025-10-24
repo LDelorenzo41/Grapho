@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FileText, Upload, Eye, Users, User as UserIcon, ArrowLeft, Download } from 'lucide-react';
+import { FileText, Upload, Eye, Users, User as UserIcon, ArrowLeft, Download, Trash2 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { dataAdapter, type Document, type User, type DocumentVisibility } from '../../lib/data';
-import { uploadFile, downloadFile } from '../../lib/storage';
+import { uploadFile, downloadFile, deleteFile } from '../../lib/storage';
 
 export function AdminDocuments() {
   const { user } = useAuth();
@@ -72,6 +72,29 @@ export function AdminDocuments() {
     } catch (error) {
       console.error('Error downloading file:', error);
       alert('Erreur lors du téléchargement');
+    }
+  };
+
+  const handleDelete = async (doc: Document) => {
+    const confirmDelete = window.confirm(
+      `Êtes-vous sûr de vouloir supprimer le document "${doc.fileName}" ?\n\nCette action est irréversible.`
+    );
+
+    if (!confirmDelete) return;
+
+    try {
+      // 1. Supprimer le fichier du storage
+      await deleteFile(doc.filePath);
+
+      // 2. Supprimer l'entrée de la base de données
+      await dataAdapter.documents.delete(doc.id);
+
+      // 3. Mettre à jour l'état local
+      setDocuments(documents.filter(d => d.id !== doc.id));
+      alert('Document supprimé avec succès !');
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      alert('Erreur lors de la suppression du document');
     }
   };
 
@@ -153,13 +176,22 @@ export function AdminDocuments() {
                                 </p>
                               </div>
                             </div>
-                            <button
-                              onClick={() => handleDownload(doc)}
-                              className="ml-2 p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-                              title="Télécharger"
-                            >
-                              <Download className="w-4 h-4" />
-                            </button>
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={() => handleDownload(doc)}
+                                className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                                title="Télécharger"
+                              >
+                                <Download className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(doc)}
+                                className="p-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+                                title="Supprimer"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
                           </div>
                         </div>
                       );
@@ -217,6 +249,13 @@ export function AdminDocuments() {
                       title="Télécharger"
                     >
                       <Download className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(doc)}
+                      className="p-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg transition"
+                      title="Supprimer"
+                    >
+                      <Trash2 className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => {
