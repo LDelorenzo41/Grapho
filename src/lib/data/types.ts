@@ -34,6 +34,7 @@ export interface Document {
   fileName: string;
   fileType: string;
   fileSize: number;
+  filePath: string;
   uploadedAt: string;
   category?: string;
   visibility: DocumentVisibility;

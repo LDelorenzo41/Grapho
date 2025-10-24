@@ -2,25 +2,28 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, FileText, MessageSquare } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { dataAdapter, type Appointment, type Message } from '../../lib/data';
+import { dataAdapter, type Appointment, type Message, type Document } from '../../lib/data';
 import { formatDateTime } from '../../lib/utils/date';
 
 export function ClientDashboard() {
   const { user } = useAuth();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const loadData = async () => {
       if (!user) return;
       try {
-        const [apts, msgs] = await Promise.all([
+        const [apts, msgs, docs] = await Promise.all([
           dataAdapter.appointments.getByClientId(user.id),
           dataAdapter.messages.getByUserId(user.id),
+          dataAdapter.documents.getVisibleToUser(user.id, user.role),
         ]);
         setAppointments(apts);
         setMessages(msgs);
+        setDocuments(docs);
       } catch (error) {
         console.error('Error loading data:', error);
       } finally {
@@ -72,7 +75,7 @@ export function ClientDashboard() {
               <FileText className="w-6 h-6 text-secondary" />
               <h3 className="font-title text-lg font-bold text-text">Mes documents</h3>
             </div>
-            <p className="font-body text-3xl font-bold text-text">-</p>
+            <p className="font-body text-3xl font-bold text-text">{documents.length}</p>
             <p className="font-body text-sm text-gray-600 mt-1">documents disponibles</p>
           </Link>
 

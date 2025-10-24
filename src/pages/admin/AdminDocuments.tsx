@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FileText, Upload, Eye, Users, User as UserIcon, ArrowLeft } from 'lucide-react';
+import { FileText, Upload, Eye, Users, User as UserIcon, ArrowLeft, Download } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 import { dataAdapter, type Document, type User, type DocumentVisibility } from '../../lib/data';
+import { uploadFile, downloadFile } from '../../lib/storage';
 
 export function AdminDocuments() {
+  const { user } = useAuth();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [clients, setClients] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,18 +35,23 @@ export function AdminDocuments() {
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0) return;
+    if (!user || !e.target.files || e.target.files.length === 0) return;
 
     const file = e.target.files[0];
     setUploading(true);
 
     try {
+      // 1. Upload le fichier vers Supabase Storage
+      const filePath = await uploadFile(file, user.id);
+
+      // 2. Créer l'entrée dans la base de données
       const newDoc = await dataAdapter.documents.create({
-        userId: 'admin-1',
-        uploadedBy: 'admin-1',
+        userId: user.id,
+        uploadedBy: user.id,
         fileName: file.name,
         fileType: file.type,
         fileSize: file.size,
+        filePath: filePath,
         category: 'Documents administratifs',
         visibility: 'all',
       });
@@ -55,6 +63,15 @@ export function AdminDocuments() {
     } finally {
       setUploading(false);
       e.target.value = '';
+    }
+  };
+
+  const handleDownload = async (doc: Document) => {
+    try {
+      await downloadFile(doc.filePath, doc.fileName);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      alert('Erreur lors du téléchargement');
     }
   };
 
@@ -105,8 +122,8 @@ export function AdminDocuments() {
         </div>
 
         {(() => {
-          const receivedDocs = documents.filter(d => d.uploadedBy !== 'admin-1');
-          const adminDocs = documents.filter(d => d.uploadedBy === 'admin-1');
+          const receivedDocs = documents.filter(d => user && d.uploadedBy !== user.id);
+          const adminDocs = documents.filter(d => user && d.uploadedBy === user.id);
 
           return (
             <>
@@ -136,6 +153,13 @@ export function AdminDocuments() {
                                 </p>
                               </div>
                             </div>
+                            <button
+                              onClick={() => handleDownload(doc)}
+                              className="ml-2 p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                              title="Télécharger"
+                            >
+                              <Download className="w-4 h-4" />
+                            </button>
                           </div>
                         </div>
                       );
@@ -186,16 +210,25 @@ export function AdminDocuments() {
                       </div>
                     </div>
                   </div>
-                  <button
-                    onClick={() => {
-                      setEditingDoc(doc);
-                      setVisibility(doc.visibility);
-                      setSelectedUsers(doc.visibleToUserIds || []);
-                    }}
-                    className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition font-body text-sm"
-                  >
-                    Modifier visibilité
-                  </button>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => handleDownload(doc)}
+                      className="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
+                      title="Télécharger"
+                    >
+                      <Download className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditingDoc(doc);
+                        setVisibility(doc.visibility);
+                        setSelectedUsers(doc.visibleToUserIds || []);
+                      }}
+                      className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition font-body text-sm"
+                    >
+                      Modifier visibilité
+                    </button>
+                  </div>
                 </div>
               </div>
                     ))}
