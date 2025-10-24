@@ -1,6 +1,6 @@
 // Helper pour convertir entre camelCase (JavaScript) et snake_case (PostgreSQL)
 
-import type { User, Appointment, Message } from '../types';
+import type { User, Appointment, Message, Document } from '../types';
 
 // ============================================
 // USER CONVERSIONS
@@ -90,5 +90,42 @@ export function messageFromSnakeCase(data: any): Message {
     content: data.content,
     read: data.read,
     sentAt: data.sent_at || data.created_at,
+  };
+}
+
+// ============================================
+// DOCUMENT CONVERSIONS
+// ============================================
+
+// Convertir camelCase vers snake_case pour l'insertion dans Supabase
+export function documentToSnakeCase(document: any): any {
+  const { userId, uploadedBy, fileName, fileType, fileSize, filePath, uploadedAt, visibleToUserIds, ...rest } = document;
+  return {
+    ...rest,
+    ...(userId !== undefined && { user_id: userId }),
+    ...(uploadedBy !== undefined && { uploaded_by: uploadedBy }),
+    ...(fileName !== undefined && { file_name: fileName }),
+    ...(fileType !== undefined && { file_type: fileType }),
+    ...(fileSize !== undefined && { file_size: fileSize }),
+    ...(filePath !== undefined && { file_path: filePath }),
+    ...(uploadedAt !== undefined && { uploaded_at: uploadedAt }),
+    ...(visibleToUserIds !== undefined && { visible_to_user_ids: visibleToUserIds }),
+  };
+}
+
+// Convertir snake_case vers camelCase pour le retour depuis Supabase
+export function documentFromSnakeCase(data: any): Document {
+  return {
+    id: data.id,
+    userId: data.user_id,
+    uploadedBy: data.uploaded_by,
+    fileName: data.file_name,
+    fileType: data.file_type,
+    fileSize: data.file_size,
+    filePath: data.file_path,
+    uploadedAt: data.uploaded_at,
+    category: data.category,
+    visibility: data.visibility,
+    visibleToUserIds: data.visible_to_user_ids,
   };
 }

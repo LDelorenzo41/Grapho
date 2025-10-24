@@ -12,13 +12,15 @@ import type {
   AvailableSlot,
   AvailabilityRule,
 } from '../types';
-import { 
-  userToSnakeCase, 
+import {
+  userToSnakeCase,
   userFromSnakeCase,
   appointmentToSnakeCase,
   appointmentFromSnakeCase,
   messageToSnakeCase,
-  messageFromSnakeCase
+  messageFromSnakeCase,
+  documentToSnakeCase,
+  documentFromSnakeCase
 } from './supabaseHelpers';
 
 const getSupabaseClient = (): SupabaseClient | null => {
@@ -256,72 +258,74 @@ export const createSupabaseAdapter = (): DataAdapter => {
       },
     },
     documents: {
-      async getAll() {
-        if (!supabase) return [];
-        const { data, error } = await supabase.from('documents').select('*');
-        if (error) throw error;
-        return data || [];
-      },
-      async getById(id: string) {
-        if (!supabase) return null;
-        const { data, error } = await supabase
-          .from('documents')
-          .select('*')
-          .eq('id', id)
-          .maybeSingle();
-        if (error) throw error;
-        return data;
-      },
-      async getByUserId(userId: string) {
-        if (!supabase) return [];
-        const { data, error } = await supabase
-          .from('documents')
-          .select('*')
-          .eq('userId', userId);
-        if (error) throw error;
-        return data || [];
-      },
-      async getVisibleToUser(userId: string, userRole: string) {
-        if (!supabase) return [];
-        if (userRole === 'admin') {
-          const { data, error } = await supabase.from('documents').select('*');
-          if (error) throw error;
-          return data || [];
-        }
-        const { data, error } = await supabase
-          .from('documents')
-          .select('*')
-          .or(`visibility.eq.all,visibility.eq.clients,and(visibility.eq.specific,visibleToUserIds.cs.{${userId}})`);
-        if (error) throw error;
-        return data || [];
-      },
-      async create(document) {
-        if (!supabase) throw new Error('Supabase not configured');
-        const { data, error } = await supabase
-          .from('documents')
-          .insert(document)
-          .select()
-          .single();
-        if (error) throw error;
-        return data;
-      },
-      async update(id: string, updates: Partial<Document>) {
-        if (!supabase) throw new Error('Supabase not configured');
-        const { data, error } = await supabase
-          .from('documents')
-          .update(updates)
-          .eq('id', id)
-          .select()
-          .single();
-        if (error) throw error;
-        return data;
-      },
-      async delete(id: string) {
-        if (!supabase) throw new Error('Supabase not configured');
-        const { error } = await supabase.from('documents').delete().eq('id', id);
-        if (error) throw error;
-      },
-    },
+  async getAll() {
+    if (!supabase) return [];
+    const { data, error } = await supabase.from('documents').select('*');
+    if (error) throw error;
+    return (data || []).map(documentFromSnakeCase);
+  },
+  async getById(id: string) {
+    if (!supabase) return null;
+    const { data, error } = await supabase
+      .from('documents')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    if (error) throw error;
+    return data ? documentFromSnakeCase(data) : null;
+  },
+  async getByUserId(userId: string) {
+    if (!supabase) return [];
+    const { data, error } = await supabase
+      .from('documents')
+      .select('*')
+      .eq('user_id', userId);
+    if (error) throw error;
+    return (data || []).map(documentFromSnakeCase);
+  },
+  async getVisibleToUser(userId: string, userRole: string) {
+    if (!supabase) return [];
+    if (userRole === 'admin') {
+      const { data, error } = await supabase.from('documents').select('*');
+      if (error) throw error;
+      return (data || []).map(documentFromSnakeCase);
+    }
+    const { data, error } = await supabase
+      .from('documents')
+      .select('*')
+      .or(`visibility.eq.all,visibility.eq.clients,and(visibility.eq.specific,visible_to_user_ids.cs.{${userId}})`);
+    if (error) throw error;
+    return (data || []).map(documentFromSnakeCase);
+  },
+  async create(document) {
+    if (!supabase) throw new Error('Supabase not configured');
+    const dbDocument = documentToSnakeCase(document);
+    const { data, error } = await supabase
+      .from('documents')
+      .insert(dbDocument)
+      .select()
+      .single();
+    if (error) throw error;
+    return documentFromSnakeCase(data);
+  },
+  async update(id: string, updates: Partial<Document>) {
+    if (!supabase) throw new Error('Supabase not configured');
+    const dbUpdates = documentToSnakeCase(updates);
+    const { data, error } = await supabase
+      .from('documents')
+      .update(dbUpdates)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return documentFromSnakeCase(data);
+  },
+  async delete(id: string) {
+    if (!supabase) throw new Error('Supabase not configured');
+    const { error } = await supabase.from('documents').delete().eq('id', id);
+    if (error) throw error;
+  },
+},
     messages: {
       async getAll() {
         if (!supabase) return [];

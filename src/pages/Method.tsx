@@ -6,7 +6,7 @@ export function Method() {
 
         <div className="prose prose-lg font-body text-gray-700 space-y-6">
           <section>
-            <h2 className="font-title text-2xl font-bold text-text mb-4">Qu'est-ce que la graphothérapie ?</h2>
+            <h2 className="font-title text-2xl font-bold text-text mb-4">🖋️ Qu'est-ce que la graphothérapie ?</h2>
             <p>
               La graphothérapie est une méthode de rééducation de l'écriture qui s'adresse aux enfants, adolescents et adultes
               rencontrant des difficultés graphiques : écriture lente, douloureuse, illisible ou fatigante.
@@ -18,37 +18,51 @@ export function Method() {
           </section>
 
           <section>
-            <h2 className="font-title text-2xl font-bold text-text mb-4">Pour qui ?</h2>
+            <h2 className="font-title text-2xl font-bold text-text mb-4">💬 Pour qui ?</h2>
             <ul className="list-disc list-inside space-y-2">
-              <li>Enfants en difficulté d'apprentissage de l'écriture</li>
-              <li>Adolescents et étudiants avec une écriture lente ou douloureuse</li>
-              <li>Adultes souhaitant améliorer leur écriture</li>
-              <li>Personnes présentant des troubles dys (dysgraphie, dyspraxie)</li>
+              <li>🌼 Enfants en difficulté d'apprentissage de l'écriture. Lorsqu'écrire devient une épreuve, que les lettres s'emmêlent ou que la main se fatigue trop vite.</li>
+              <li>🌼 Adolescents et étudiants avec une écriture lente ou douloureuse. Quand l'écriture perd en lisibilité, que le rythme scolaire s'accélère ou que la confiance s'effrite.</li>
+              <li>🌼 Adultes souhaitant améliorer leur écriture. Retrouver le confort du geste, améliorer la lisibilité, ou simplement renouer avec le plaisir d'écrire à la main.</li>
+              <li>Personnes présentant des troubles dys (dysgraphie, dyspraxie, TDA/H…) en complément d'un suivi pluridisciplinaire.
+</li>
             </ul>
           </section>
 
           <section>
-            <h2 className="font-title text-2xl font-bold text-text mb-4">Le déroulement des séances</h2>
-            <div className="space-y-4">
+            <h2 className="font-title text-2xl font-bold text-text mb-4">🧭 Comment se déroule une prise en charge ?</h2>
+            <div className="space-y-6">
               <div>
-                <h3 className="font-title text-xl font-semibold text-text mb-2">Première séance : le bilan</h3>
+                <h3 className="font-title text-xl font-semibold text-text mb-3">1. Le bilan de l'écriture manuscrite</h3>
+                <p className="mb-3">
+                  Le bilan se compose de 3 rendez-vous distincts :
+                </p>
+                <ul className="space-y-3 ml-4">
+                  <li className="flex items-start">
+                    <span className="text-primary mr-3 mt-1">•</span>
+                    <span>Le premier nous permet de nous rencontrer (graphothérapeute + enfant + parents) et d'éclaircir toutes les inquiétudes ;</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-primary mr-3 mt-1">•</span>
+                    <span>Le deuxième rendez-vous se déroule avec l'enfant seul. Il permet d'évaluer le geste graphique, la posture, la tenue du crayon et la motricité fine au travers de tests. Ce bilan sert à comprendre les origines des difficultés et à définir un plan de rééducation personnalisé ; il sera utilisable par la suite auprès de personnels de santé suivant le scripteur, ainsi qu'auprès de la MDPH dans le cadre d'une demande de dossier ;</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-primary mr-3 mt-1">•</span>
+                    <span>Le troisième rendez-vous constitutif du bilan est un rendez-vous de remise du bilan aux parents et à l'enfant, afin de discuter ensemble d'un plan de remédiation et d'un suivi adapté aux besoins de chacun.</span>
+                  </li>
+                </ul>
+              </div>
+              
+              <div>
+                <h3 className="font-title text-xl font-semibold text-text mb-2">2. Les séances de rééducation</h3>
                 <p>
-                  Un bilan complet permet d'évaluer les difficultés graphiques, la posture, la tenue du crayon et la vitesse
-                  d'écriture. Des objectifs personnalisés sont ensuite définis.
+                  Les séances de rééducation sont ensuite construites comme des moments de détente et de progression : on bouge, on respire, on trace, on joue avec les formes et les mouvements. Petit à petit, l'écriture devient plus fluide, plus souple… et souvent, plus joyeuse aussi.
                 </p>
               </div>
+              
               <div>
-                <h3 className="font-title text-xl font-semibold text-text mb-2">Séances de suivi</h3>
+                <h3 className="font-title text-xl font-semibold text-text mb-2">3. Le suivi et l'accompagnement</h3>
                 <p>
-                  Les séances hebdomadaires ou bimensuelles proposent des exercices variés : relaxation, motricité fine,
-                  graphisme et écriture. Des exercices à la maison complètent le travail en séance.
-                </p>
-              </div>
-              <div>
-                <h3 className="font-title text-xl font-semibold text-text mb-2">Durée de l'accompagnement</h3>
-                <p>
-                  En moyenne, 15 à 20 séances suffisent pour observer des progrès significatifs. La durée varie selon
-                  l'âge, les difficultés et l'assiduité aux exercices.
+                  Chaque progression est valorisée, et des conseils pratiques sont donnés pour favoriser l'autonomie et la confiance dans le quotidien, afin de permettre des résultats dans la durée.
                 </p>
               </div>
             </div>
