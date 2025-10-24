@@ -1,0 +1,9 @@
+/* Styles pour cacher la scrollbar des tabs sur mobile */
+.hide-scrollbar {
+  -ms-overflow-style: none;  /* IE et Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari et Opera */
+}
