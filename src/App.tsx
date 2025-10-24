@@ -24,6 +24,7 @@ import { AdminClients } from './pages/admin/AdminClients';
 import { AdminSettings } from './pages/admin/AdminSettings';
 import { AdminDocuments } from './pages/admin/AdminDocuments';
 import { ClientDetail } from './pages/admin/ClientDetail';
+import { ResetPassword } from './pages/ResetPassword';
 
 function App() {
   return (
@@ -40,6 +41,7 @@ function App() {
             <Route path="/politique-confidentialite" element={<Privacy />} />
             <Route path="/connexion" element={<Login />} />
             <Route path="/offline" element={<Offline />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
 
             <Route
               path="/client/dashboard"

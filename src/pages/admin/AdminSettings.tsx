@@ -1,8 +1,17 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Save, Plus, Trash2, Edit2, X, ArrowLeft } from 'lucide-react';
+import { Save, Plus, Trash2, Edit2, X, ArrowLeft, Lock } from 'lucide-react';
+import { createClient } from '@supabase/supabase-js';
 import { dataAdapter, type Settings, type AvailabilityRule } from '../../lib/data';
 import { DemoBanner } from '../../components/DemoBanner';
+
+// Client Supabase pour le changement de mot de passe
+const getSupabaseClient = () => {
+  const url = import.meta.env.VITE_SUPABASE_URL;
+  const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  if (!url || !key) return null;
+  return createClient(url, key);
+};
 
 export function AdminSettings() {
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -17,18 +26,31 @@ export function AdminSettings() {
     endTime: '12:00',
   });
 
+  // États pour le changement de mot de passe
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
+
   useEffect(() => {
     const loadData = async () => {
       try {
         // Charger les settings
         const s = await dataAdapter.settings.get();
+        if (!s.availabilityRules) {
+          s.availabilityRules = [];
+        }
         setSettings(s);
-
-        // Charger les availability rules depuis leur table
-        const rules = await dataAdapter.availabilityRules?.getAll() || [];
+        
+        // ✅ Charger les availability_rules depuis la table dédiée
+        const rules = await dataAdapter.availabilityRules.getAll();
         setAvailabilityRules(rules);
       } catch (error) {
-        console.error('Error loading settings:', error);
+        console.error('Error loading data:', error);
       } finally {
         setLoading(false);
       }
@@ -50,14 +72,64 @@ export function AdminSettings() {
     }
   };
 
-  const handleToggleRule = async (ruleId: string) => {
-    const rule = availabilityRules.find(r => r.id === ruleId);
-    if (!rule || !dataAdapter.availabilityRules) return;
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError('');
+    setPasswordSuccess('');
+
+    // Validations
+    if (passwordData.newPassword.length < 6) {
+      setPasswordError('Le nouveau mot de passe doit contenir au moins 6 caractères');
+      return;
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setPasswordError('Les mots de passe ne correspondent pas');
+      return;
+    }
+
+    setChangingPassword(true);
+    const supabase = getSupabaseClient();
+
+    if (!supabase) {
+      setPasswordError('Erreur de configuration');
+      setChangingPassword(false);
+      return;
+    }
 
     try {
+      // Méthode Supabase pour changer le mot de passe
+      const { error } = await supabase.auth.updateUser({
+        password: passwordData.newPassword
+      });
+
+      if (error) throw error;
+
+      setPasswordSuccess('Mot de passe modifié avec succès !');
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+      });
+    } catch (error: any) {
+      console.error('Error changing password:', error);
+      setPasswordError(error.message || 'Erreur lors du changement de mot de passe');
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
+  const handleToggleRule = async (ruleId: string) => {
+    try {
+      const rule = availabilityRules.find(r => r.id === ruleId);
+      if (!rule) return;
+      
       const updatedRule = { ...rule, isActive: !rule.isActive };
-      await dataAdapter.availabilityRules.update(ruleId, { isActive: !rule.isActive });
-      setAvailabilityRules(availabilityRules.map(r => r.id === ruleId ? updatedRule : r));
+      await dataAdapter.availabilityRules.update(ruleId, updatedRule);
+      
+      setAvailabilityRules(availabilityRules.map(r =>
+        r.id === ruleId ? updatedRule : r
+      ));
     } catch (error) {
       console.error('Error toggling rule:', error);
       alert('Erreur lors de la modification');
@@ -65,9 +137,8 @@ export function AdminSettings() {
   };
 
   const handleDeleteRule = async (ruleId: string) => {
-    if (!dataAdapter.availabilityRules) return;
     if (!confirm('Êtes-vous sûr de vouloir supprimer cette disponibilité ?')) return;
-
+    
     try {
       await dataAdapter.availabilityRules.delete(ruleId);
       setAvailabilityRules(availabilityRules.filter(rule => rule.id !== ruleId));
@@ -78,16 +149,14 @@ export function AdminSettings() {
   };
 
   const handleAddRule = async () => {
-    if (!dataAdapter.availabilityRules) return;
-
-    const rule: Omit<AvailabilityRule, 'id'> = {
-      dayOfWeek: newRule.dayOfWeek,
-      startTime: newRule.startTime,
-      endTime: newRule.endTime,
-      isActive: true,
-    };
-
     try {
+      const rule: Omit<AvailabilityRule, 'id'> = {
+        dayOfWeek: newRule.dayOfWeek,
+        startTime: newRule.startTime,
+        endTime: newRule.endTime,
+        isActive: true,
+      };
+      
       const createdRule = await dataAdapter.availabilityRules.create(rule);
       setAvailabilityRules([...availabilityRules, createdRule]);
       setShowAddRule(false);
@@ -99,15 +168,11 @@ export function AdminSettings() {
   };
 
   const handleEditRule = async (rule: AvailabilityRule) => {
-    if (!dataAdapter.availabilityRules) return;
-
     try {
-      await dataAdapter.availabilityRules.update(rule.id, {
-        dayOfWeek: rule.dayOfWeek,
-        startTime: rule.startTime,
-        endTime: rule.endTime,
-      });
-      setAvailabilityRules(availabilityRules.map(r => r.id === rule.id ? rule : r));
+      await dataAdapter.availabilityRules.update(rule.id, rule);
+      setAvailabilityRules(availabilityRules.map(r =>
+        r.id === rule.id ? rule : r
+      ));
       setEditingRule(null);
     } catch (error) {
       console.error('Error editing rule:', error);
@@ -115,23 +180,9 @@ export function AdminSettings() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="py-16 text-center">
-        <p className="font-body text-gray-600">Chargement...</p>
-      </div>
-    );
+  if (loading || !settings) {
+    return <div className="py-16 text-center"><p className="font-body text-gray-600">Chargement...</p></div>;
   }
-
-  if (!settings) {
-    return (
-      <div className="py-16 text-center">
-        <p className="font-body text-red-600">Erreur lors du chargement des paramètres</p>
-      </div>
-    );
-  }
-
-  const days = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
 
   return (
     <div className="py-8">
@@ -148,12 +199,71 @@ export function AdminSettings() {
         </div>
 
         <div className="space-y-6">
-          {/* Disponibilités */}
+          {/* SECTION: Sécurité */}
+          <div className="bg-white rounded-lg shadow-sm border p-6">
+            <div className="flex items-center space-x-3 mb-4">
+              <Lock className="w-6 h-6 text-primary" />
+              <h2 className="font-title text-2xl font-bold text-text">Sécurité</h2>
+            </div>
+            
+            <form onSubmit={handleChangePassword} className="space-y-4">
+              <div>
+                <label className="block font-body text-sm font-medium text-text mb-2">
+                  Nouveau mot de passe *
+                </label>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  value={passwordData.newPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent font-body"
+                  placeholder="Minimum 6 caractères"
+                />
+              </div>
+
+              <div>
+                <label className="block font-body text-sm font-medium text-text mb-2">
+                  Confirmer le nouveau mot de passe *
+                </label>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  value={passwordData.confirmPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent font-body"
+                  placeholder="Confirmer le mot de passe"
+                />
+              </div>
+
+              {passwordError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm text-red-600 font-body">{passwordError}</p>
+                </div>
+              )}
+
+              {passwordSuccess && (
+                <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <p className="text-sm text-green-600 font-body">{passwordSuccess}</p>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={changingPassword}
+                className="flex items-center space-x-2 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition font-body disabled:opacity-50"
+              >
+                <Lock className="w-4 h-4" />
+                <span>{changingPassword ? 'Modification...' : 'Changer le mot de passe'}</span>
+              </button>
+            </form>
+          </div>
+
+          {/* Section Disponibilités */}
           <div className="bg-white rounded-lg shadow-sm border p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-title text-2xl font-bold text-text">
-                Disponibilités pour les premiers rendez-vous
-              </h2>
+              <h2 className="font-title text-2xl font-bold text-text">Disponibilités pour les premiers rendez-vous</h2>
               <button
                 onClick={() => setShowAddRule(true)}
                 className="flex items-center space-x-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition font-body text-sm"
@@ -162,90 +272,90 @@ export function AdminSettings() {
                 <span>Ajouter</span>
               </button>
             </div>
+            <div className="space-y-2">
+              {availabilityRules.map(rule => {
+                const days = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+                const isEditing = editingRule?.id === rule.id;
 
-            {availabilityRules.length === 0 ? (
-              <p className="text-gray-500 font-body text-center py-8">
-                Aucune disponibilité configurée. Cliquez sur "Ajouter" pour commencer.
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {availabilityRules.map(rule => {
-                  const isEditing = editingRule?.id === rule.id;
-
-                  if (isEditing) {
-                    return (
-                      <div key={rule.id} className="flex items-center space-x-2 py-3 border-b">
-                        <select
-                          value={editingRule.dayOfWeek}
-                          onChange={e => setEditingRule({ ...editingRule, dayOfWeek: parseInt(e.target.value) })}
-                          className="px-2 py-1 border rounded font-body text-sm"
-                        >
-                          {days.map((day, idx) => (
-                            <option key={idx} value={idx}>{day}</option>
-                          ))}
-                        </select>
-                        <input
-                          type="time"
-                          value={editingRule.startTime}
-                          onChange={e => setEditingRule({ ...editingRule, startTime: e.target.value })}
-                          className="px-2 py-1 border rounded font-body text-sm"
-                        />
-                        <span className="font-body text-gray-600">-</span>
-                        <input
-                          type="time"
-                          value={editingRule.endTime}
-                          onChange={e => setEditingRule({ ...editingRule, endTime: e.target.value })}
-                          className="px-2 py-1 border rounded font-body text-sm"
-                        />
-                        <button
-                          onClick={() => handleEditRule(editingRule)}
-                          className="px-3 py-1 bg-primary text-white rounded hover:bg-primary/90 font-body text-sm"
-                        >
-                          OK
-                        </button>
-                        <button
-                          onClick={() => setEditingRule(null)}
-                          className="p-1 hover:bg-gray-100 rounded"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    );
-                  }
-
+                if (isEditing) {
                   return (
-                    <div key={rule.id} className="flex items-center justify-between py-3 border-b">
-                      <span className="font-body text-text font-semibold w-32">{days[rule.dayOfWeek]}</span>
-                      <span className="font-body text-gray-600 flex-1">
-                        {rule.startTime} - {rule.endTime}
-                      </span>
-                      <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => handleToggleRule(rule.id)}
-                          className={`px-3 py-1 rounded text-xs font-semibold ${
-                            rule.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
-                          }`}
-                        >
-                          {rule.isActive ? 'Actif' : 'Inactif'}
-                        </button>
-                        <button
-                          onClick={() => setEditingRule(rule)}
-                          className="p-1.5 hover:bg-gray-100 rounded"
-                        >
-                          <Edit2 className="w-4 h-4 text-gray-600" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteRule(rule.id)}
-                          className="p-1.5 hover:bg-red-50 rounded"
-                        >
-                          <Trash2 className="w-4 h-4 text-red-600" />
-                        </button>
-                      </div>
+                    <div key={rule.id} className="flex items-center space-x-2 py-3 border-b">
+                      <select
+                        value={editingRule.dayOfWeek}
+                        onChange={e => setEditingRule({ ...editingRule, dayOfWeek: parseInt(e.target.value) })}
+                        className="px-2 py-1 border rounded font-body text-sm"
+                      >
+                        {days.map((day, idx) => (
+                          <option key={idx} value={idx}>{day}</option>
+                        ))}
+                      </select>
+                      <input
+                        type="time"
+                        value={editingRule.startTime}
+                        onChange={e => setEditingRule({ ...editingRule, startTime: e.target.value })}
+                        className="px-2 py-1 border rounded font-body text-sm"
+                      />
+                      <span className="font-body text-gray-600">-</span>
+                      <input
+                        type="time"
+                        value={editingRule.endTime}
+                        onChange={e => setEditingRule({ ...editingRule, endTime: e.target.value })}
+                        className="px-2 py-1 border rounded font-body text-sm"
+                      />
+                      <button
+                        onClick={() => handleEditRule(editingRule)}
+                        className="px-3 py-1 bg-primary text-white rounded text-sm font-body"
+                      >
+                        Valider
+                      </button>
+                      <button
+                        onClick={() => setEditingRule(null)}
+                        className="p-1.5 hover:bg-gray-100 rounded"
+                      >
+                        <X className="w-4 h-4 text-gray-600" />
+                      </button>
                     </div>
                   );
-                })}
-              </div>
-            )}
+                }
+
+                return (
+                  <div key={rule.id} className="flex items-center justify-between py-3 border-b">
+                    <div className="font-body text-text">
+                      <span className="font-semibold">{days[rule.dayOfWeek]}</span>
+                      <span className="mx-2 text-gray-600">-</span>
+                      <span>{rule.startTime} - {rule.endTime}</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => handleToggleRule(rule.id)}
+                        className={`px-3 py-1 rounded-full text-xs font-semibold ${rule.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}
+                      >
+                        {rule.isActive ? 'Actif' : 'Inactif'}
+                      </button>
+                      <button
+                        onClick={() => setEditingRule(rule)}
+                        className="p-1.5 hover:bg-gray-100 rounded"
+                      >
+                        <Edit2 className="w-4 h-4 text-gray-600" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteRule(rule.id)}
+                        className="p-1.5 hover:bg-red-50 rounded"
+                      >
+                        <Trash2 className="w-4 h-4 text-red-600" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+              
+              {availabilityRules.length === 0 && (
+                <div className="text-center py-8">
+                  <p className="text-gray-500 font-body">Aucune disponibilité configurée</p>
+                  <p className="text-sm text-gray-400 font-body mt-1">Cliquez sur "Ajouter" pour créer votre première disponibilité</p>
+                </div>
+              )}
+            </div>
 
             {showAddRule && (
               <div className="mt-4 p-4 border-2 border-primary/20 rounded-lg bg-primary/5">
@@ -256,7 +366,7 @@ export function AdminSettings() {
                     onChange={e => setNewRule({ ...newRule, dayOfWeek: parseInt(e.target.value) })}
                     className="px-3 py-2 border rounded-lg font-body"
                   >
-                    {days.map((day, idx) => (
+                    {['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'].map((day, idx) => (
                       <option key={idx} value={idx}>{day}</option>
                     ))}
                   </select>
@@ -277,13 +387,16 @@ export function AdminSettings() {
                 <div className="flex space-x-2">
                   <button
                     onClick={handleAddRule}
-                    className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 font-body text-sm"
+                    className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition font-body"
                   >
                     Ajouter
                   </button>
                   <button
-                    onClick={() => setShowAddRule(false)}
-                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-body text-sm"
+                    onClick={() => {
+                      setShowAddRule(false);
+                      setNewRule({ dayOfWeek: 1, startTime: '09:00', endTime: '12:00' });
+                    }}
+                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition font-body"
                   >
                     Annuler
                   </button>
@@ -292,60 +405,49 @@ export function AdminSettings() {
             )}
           </div>
 
-          {/* Templates d'emails */}
+          {/* Section Templates emails */}
           <div className="bg-white rounded-lg shadow-sm border p-6">
-            <h2 className="font-title text-2xl font-bold text-text mb-4">Templates d'emails</h2>
+            <h2 className="font-title text-2xl font-bold text-text mb-4">Modèles d'emails</h2>
             <div className="space-y-4">
               <div>
-                <label className="block font-body font-semibold text-text mb-2">
+                <label className="block font-body text-sm font-medium text-text mb-2">
                   Confirmation de rendez-vous
                 </label>
                 <textarea
-                  value={settings.emailTemplates?.appointmentConfirmation || ''}
+                  value={settings.emailTemplates.appointmentConfirmation}
                   onChange={e => setSettings({
                     ...settings,
-                    emailTemplates: {
-                      ...settings.emailTemplates,
-                      appointmentConfirmation: e.target.value,
-                    },
+                    emailTemplates: { ...settings.emailTemplates, appointmentConfirmation: e.target.value }
                   })}
-                  className="w-full px-4 py-3 border rounded-lg font-body"
                   rows={4}
-                  placeholder="Bonjour {firstName}, votre rendez-vous est confirmé..."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent font-body text-sm"
                 />
               </div>
               <div>
-                <label className="block font-body font-semibold text-text mb-2">
+                <label className="block font-body text-sm font-medium text-text mb-2">
                   Rappel de rendez-vous
                 </label>
                 <textarea
-                  value={settings.emailTemplates?.appointmentReminder || ''}
+                  value={settings.emailTemplates.appointmentReminder}
                   onChange={e => setSettings({
                     ...settings,
-                    emailTemplates: {
-                      ...settings.emailTemplates,
-                      appointmentReminder: e.target.value,
-                    },
+                    emailTemplates: { ...settings.emailTemplates, appointmentReminder: e.target.value }
                   })}
-                  className="w-full px-4 py-3 border rounded-lg font-body"
                   rows={4}
-                  placeholder="Rappel : vous avez rendez-vous demain..."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent font-body text-sm"
                 />
               </div>
             </div>
           </div>
 
-          {/* Bouton sauvegarder */}
-          <div className="flex justify-end">
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="flex items-center space-x-2 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition font-body disabled:opacity-50"
-            >
-              <Save className="w-5 h-5" />
-              <span>{saving ? 'Enregistrement...' : 'Enregistrer'}</span>
-            </button>
-          </div>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex items-center space-x-2 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition font-body disabled:opacity-50"
+          >
+            <Save className="w-4 h-4" />
+            <span>{saving ? 'Enregistrement...' : 'Enregistrer les paramètres emails'}</span>
+          </button>
         </div>
       </div>
     </div>

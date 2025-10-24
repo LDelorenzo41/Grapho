@@ -101,5 +101,5 @@ export interface DataAdapter {
   consents: ConsentsRepository;
   sessions: SessionsRepository;
   prescriptions: PrescriptionsRepository;
-  availabilityRules?: AvailabilityRulesRepository; // Optional pour compatibilité
+  availabilityRules: AvailabilityRulesRepository;
 }
