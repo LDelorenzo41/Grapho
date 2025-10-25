@@ -15,6 +15,23 @@ export function AdminDocuments() {
   const [visibility, setVisibility] = useState<DocumentVisibility>('specific');
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
 
+  // Nouveaux états pour la modale de configuration pré-upload
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [uploadCategory, setUploadCategory] = useState('Documents administratifs');
+  const [uploadVisibility, setUploadVisibility] = useState<DocumentVisibility>('specific');
+  const [uploadSelectedUsers, setUploadSelectedUsers] = useState<string[]>([]);
+
+  // Liste de catégories prédéfinies
+  const categories = [
+    'Documents administratifs',
+    'Bilans',
+    'Documents médicaux',
+    'Éxercices',
+    'Comptes rendus',
+    'Autre',
+  ];
+
   useEffect(() => {
     loadData();
   }, []);
@@ -34,35 +51,55 @@ export function AdminDocuments() {
     }
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Nouvelle fonction : ouvre la modale au lieu d'uploader directement
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!user || !e.target.files || e.target.files.length === 0) return;
 
     const file = e.target.files[0];
+    setPendingFile(file);
+    setShowUploadModal(true);
+    
+    // Réinitialiser les valeurs par défaut
+    setUploadCategory('Documents administratifs');
+    setUploadVisibility('specific');
+    setUploadSelectedUsers([]);
+    
+    // Réinitialiser l'input file pour pouvoir resélectionner le même fichier
+    e.target.value = '';
+  };
+
+  // Nouvelle fonction : confirme l'upload avec les paramètres configurés
+  const handleConfirmUpload = async () => {
+    if (!user || !pendingFile) return;
+
     setUploading(true);
 
     try {
       // 1. Upload le fichier vers Supabase Storage
-      const filePath = await uploadFile(file, user.id);
+      const filePath = await uploadFile(pendingFile, user.id);
 
-      // 2. Créer l'entrée dans la base de données
+      // 2. Créer l'entrée dans la base de données avec les paramètres choisis
       const newDoc = await dataAdapter.documents.create({
         userId: user.id,
         uploadedBy: user.id,
-        fileName: file.name,
-        fileType: file.type,
-        fileSize: file.size,
+        fileName: pendingFile.name,
+        fileType: pendingFile.type,
+        fileSize: pendingFile.size,
         filePath: filePath,
-        category: 'Documents administratifs',
-        visibility: 'all',
+        category: uploadCategory,
+        visibility: uploadVisibility,
+        visibleToUserIds: uploadVisibility === 'specific' ? uploadSelectedUsers : undefined,
       });
+      
       setDocuments([newDoc, ...documents]);
+      setShowUploadModal(false);
+      setPendingFile(null);
       alert('Document ajouté avec succès !');
     } catch (error) {
       console.error('Error uploading document:', error);
       alert('Erreur lors de l\'ajout du document');
     } finally {
       setUploading(false);
-      e.target.value = '';
     }
   };
 
@@ -134,10 +171,10 @@ export function AdminDocuments() {
           </div>
           <label className="flex items-center space-x-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition cursor-pointer font-body">
             <Upload className="w-4 h-4" />
-            <span>{uploading ? 'Ajout...' : 'Ajouter un document'}</span>
+            <span>Ajouter un document</span>
             <input
               type="file"
-              onChange={handleFileUpload}
+              onChange={handleFileSelect}
               disabled={uploading}
               className="hidden"
             />
@@ -277,6 +314,128 @@ export function AdminDocuments() {
             );
           })()}
 
+        {/* Modale de configuration AVANT l'upload */}
+        {showUploadModal && pendingFile && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
+              <h3 className="font-title text-2xl font-bold text-text mb-2">
+                Configurer le document
+              </h3>
+              <p className="font-body text-sm text-gray-600 mb-6">
+                Fichier : <strong>{pendingFile.name}</strong> ({(pendingFile.size / 1024).toFixed(1)} KB)
+              </p>
+
+              {/* Sélection de la catégorie */}
+              <div className="mb-6">
+                <label className="block font-body font-semibold text-text mb-2">
+                  Catégorie du document
+                </label>
+                <select
+                  value={uploadCategory}
+                  onChange={(e) => setUploadCategory(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg font-body focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  {categories.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Sélection de la visibilité */}
+              <div className="mb-6">
+                <label className="block font-body font-semibold text-text mb-2">
+                  Qui peut voir ce document ?
+                </label>
+                <div className="space-y-3">
+                  <label className="flex items-center space-x-3">
+                    <input
+                      type="radio"
+                      checked={uploadVisibility === 'all'}
+                      onChange={() => setUploadVisibility('all')}
+                      className="w-4 h-4"
+                    />
+                    <span className="font-body">Visible par tous (public)</span>
+                  </label>
+                  <label className="flex items-center space-x-3">
+                    <input
+                      type="radio"
+                      checked={uploadVisibility === 'clients'}
+                      onChange={() => setUploadVisibility('clients')}
+                      className="w-4 h-4"
+                    />
+                    <span className="font-body">Tous les clients</span>
+                  </label>
+                  <label className="flex items-center space-x-3">
+                    <input
+                      type="radio"
+                      checked={uploadVisibility === 'specific'}
+                      onChange={() => setUploadVisibility('specific')}
+                      className="w-4 h-4"
+                    />
+                    <span className="font-body">Personnes spécifiques</span>
+                  </label>
+
+                  {uploadVisibility === 'specific' && (
+                    <div className="ml-7 space-y-2 max-h-48 overflow-y-auto border rounded-lg p-3">
+                      {clients.length === 0 ? (
+                        <p className="font-body text-sm text-gray-500">Aucun client disponible</p>
+                      ) : (
+                        clients.map(client => (
+                          <label key={client.id} className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              checked={uploadSelectedUsers.includes(client.id)}
+                              onChange={e => {
+                                if (e.target.checked) {
+                                  setUploadSelectedUsers([...uploadSelectedUsers, client.id]);
+                                } else {
+                                  setUploadSelectedUsers(uploadSelectedUsers.filter(id => id !== client.id));
+                                }
+                              }}
+                              className="w-4 h-4"
+                            />
+                            <span className="font-body text-sm">{client.firstName} {client.lastName}</span>
+                          </label>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Validation de sélection pour "specific" */}
+              {uploadVisibility === 'specific' && uploadSelectedUsers.length === 0 && (
+                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="font-body text-sm text-yellow-800">
+                    ⚠️ Veuillez sélectionner au moins un destinataire
+                  </p>
+                </div>
+              )}
+
+              <div className="flex space-x-3">
+                <button
+                  onClick={handleConfirmUpload}
+                  disabled={uploading || (uploadVisibility === 'specific' && uploadSelectedUsers.length === 0)}
+                  className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition font-body disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {uploading ? 'Ajout en cours...' : 'Ajouter le document'}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowUploadModal(false);
+                    setPendingFile(null);
+                  }}
+                  disabled={uploading}
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition font-body disabled:opacity-50"
+                >
+                  Annuler
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modale de modification de visibilité (existante) */}
         {editingDoc && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 max-w-lg w-full mx-4">
