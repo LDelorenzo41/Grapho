@@ -1,4 +1,5 @@
 import { Baby, GraduationCap, Briefcase, HeartHandshake, FileText, Users, TrendingUp } from 'lucide-react';
+import { BeforeAfterSlider } from './BeforeAfterSlider';
 
 export function Method() {
   return (
@@ -28,6 +29,19 @@ export function Method() {
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Section Avant/Après avec slider interactif */}
+      <section className="bg-white py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="font-title text-3xl font-bold text-text mb-10 text-center">✨ Reprenez confiance en vous !</h2>
+          <BeforeAfterSlider 
+            beforeImage="/double1.png"
+            afterImage="/double2.png"
+            beforeLabel="Avant"
+            afterLabel="Après"
+          />
         </div>
       </section>
 

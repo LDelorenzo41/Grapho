@@ -135,8 +135,8 @@ export function Home() {
                     lenteur, douleurs, illisibilité, fatigue...
                   </p>
                   <p>
-                    L'objectif n'est pas de « ré-apprendre à écrire », mais d'aider chacun à retrouver le plaisir et l'aisance du geste graphique.
-                    À travers des exercices ludiques et progressifs, le graphothérapeute aide à corriger les automatismes gênants, à libérer le mouvement et à renforcer la confiance en soi dans l'acte d'écriture.
+                    L'objectif n'est pas de « ré-apprendre à écrire », mais d'aider chacun à retrouver le plaisir et <span className="font-bold text-primary">l'aisance du geste</span> graphique.
+                    À travers des exercices ludiques et progressifs, le graphothérapeute aide à corriger les automatismes gênants, à libérer le mouvement et à renforcer la <span className="font-bold text-primary">confiance en soi</span> dans l'acte d'écriture.
                   </p>
                 </div>
                 
