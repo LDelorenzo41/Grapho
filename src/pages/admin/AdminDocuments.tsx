@@ -22,6 +22,10 @@ export function AdminDocuments() {
   const [uploadVisibility, setUploadVisibility] = useState<DocumentVisibility>('specific');
   const [uploadSelectedUsers, setUploadSelectedUsers] = useState<string[]>([]);
 
+  // ✅ NOUVEAU : État pour la modale de confirmation de suppression
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [documentToDelete, setDocumentToDelete] = useState<Document | null>(null);
+
   // Liste de catégories prédéfinies
   const categories = [
     'Documents administratifs',
@@ -112,22 +116,27 @@ export function AdminDocuments() {
     }
   };
 
-  const handleDelete = async (doc: Document) => {
-    const confirmDelete = window.confirm(
-      `Êtes-vous sûr de vouloir supprimer le document "${doc.fileName}" ?\n\nCette action est irréversible.`
-    );
+  // ✅ NOUVELLE VERSION : Ouvrir la modale de confirmation au lieu de window.confirm()
+  const handleDelete = (doc: Document) => {
+    setDocumentToDelete(doc);
+    setShowDeleteModal(true);
+  };
 
-    if (!confirmDelete) return;
+  // ✅ NOUVEAU : Confirmer la suppression
+  const confirmDeleteDocument = async () => {
+    if (!documentToDelete) return;
 
     try {
       // 1. Supprimer le fichier du storage
-      await deleteFile(doc.filePath);
+      await deleteFile(documentToDelete.filePath);
 
       // 2. Supprimer l'entrée de la base de données
-      await dataAdapter.documents.delete(doc.id);
+      await dataAdapter.documents.delete(documentToDelete.id);
 
       // 3. Mettre à jour l'état local
-      setDocuments(documents.filter(d => d.id !== doc.id));
+      setDocuments(documents.filter(d => d.id !== documentToDelete.id));
+      setShowDeleteModal(false);
+      setDocumentToDelete(null);
       alert('Document supprimé avec succès !');
     } catch (error) {
       console.error('Error deleting document:', error);
@@ -313,6 +322,69 @@ export function AdminDocuments() {
               </>
             );
           })()}
+
+        {/* ✅ NOUVELLE MODALE : Confirmation de suppression */}
+        {showDeleteModal && documentToDelete && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70] p-4">
+            <div className="bg-white rounded-lg p-8 max-w-md w-full shadow-2xl">
+              {/* Icône d'alerte */}
+              <div className="flex justify-center mb-6">
+                <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center">
+                  <Trash2 className="w-12 h-12 text-red-600" />
+                </div>
+              </div>
+
+              {/* Titre */}
+              <h3 className="font-title text-2xl font-bold text-text text-center mb-2">
+                Supprimer ce document ?
+              </h3>
+
+              {/* Message */}
+              <p className="font-body text-center text-gray-600 mb-6">
+                Cette action est irréversible. Le document sera définitivement supprimé du stockage.
+              </p>
+
+              {/* Détails du document */}
+              <div className="bg-red-50 border-l-4 border-red-500 rounded-lg p-4 mb-6">
+                <p className="font-body text-sm text-gray-700 mb-2">
+                  <strong>Fichier :</strong> {documentToDelete.fileName}
+                </p>
+                <p className="font-body text-sm text-gray-700 mb-2">
+                  <strong>Catégorie :</strong> {documentToDelete.category}
+                </p>
+                <p className="font-body text-sm text-gray-700">
+                  <strong>Taille :</strong> {(documentToDelete.fileSize / 1024).toFixed(1)} KB
+                </p>
+              </div>
+
+              {/* Avertissement */}
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-6">
+                <p className="font-body text-xs text-yellow-800">
+                  ⚠️ <strong>Attention :</strong> Si ce document est partagé avec des clients, ils n'y auront plus accès.
+                </p>
+              </div>
+
+              {/* Boutons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setDocumentToDelete(null);
+                  }}
+                  className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg font-body font-semibold hover:bg-gray-50 transition"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={confirmDeleteDocument}
+                  className="flex-1 px-6 py-3 bg-red-600 text-white rounded-lg font-body font-semibold hover:bg-red-700 transition shadow-md hover:shadow-lg"
+                >
+                  Supprimer
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Modale de configuration AVANT l'upload */}
         {showUploadModal && pendingFile && (

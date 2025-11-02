@@ -36,6 +36,10 @@ export function AdminSettings() {
   const [passwordSuccess, setPasswordSuccess] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
 
+  // ✅ NOUVEAU : État pour la modale de confirmation de suppression
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [ruleToDelete, setRuleToDelete] = useState<AvailabilityRule | null>(null);
+
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -136,12 +140,22 @@ export function AdminSettings() {
     }
   };
 
-  const handleDeleteRule = async (ruleId: string) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer cette disponibilité ?')) return;
+  // ✅ NOUVELLE VERSION : Ouvrir la modale de confirmation au lieu de confirm()
+  const handleDeleteRule = (rule: AvailabilityRule) => {
+    setRuleToDelete(rule);
+    setShowDeleteModal(true);
+  };
+
+  // ✅ NOUVEAU : Confirmer la suppression
+  const confirmDeleteRule = async () => {
+    if (!ruleToDelete) return;
     
     try {
-      await dataAdapter.availabilityRules.delete(ruleId);
-      setAvailabilityRules(availabilityRules.filter(rule => rule.id !== ruleId));
+      await dataAdapter.availabilityRules.delete(ruleToDelete.id);
+      setAvailabilityRules(availabilityRules.filter(rule => rule.id !== ruleToDelete.id));
+      setShowDeleteModal(false);
+      setRuleToDelete(null);
+      alert('Disponibilité supprimée avec succès !');
     } catch (error) {
       console.error('Error deleting rule:', error);
       alert('Erreur lors de la suppression');
@@ -183,6 +197,8 @@ export function AdminSettings() {
   if (loading || !settings) {
     return <div className="py-16 text-center"><p className="font-body text-gray-600">Chargement...</p></div>;
   }
+
+  const days = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
 
   return (
     <div className="py-8">
@@ -274,7 +290,6 @@ export function AdminSettings() {
             </div>
             <div className="space-y-2">
               {availabilityRules.map(rule => {
-                const days = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
                 const isEditing = editingRule?.id === rule.id;
 
                 if (isEditing) {
@@ -339,7 +354,7 @@ export function AdminSettings() {
                         <Edit2 className="w-4 h-4 text-gray-600" />
                       </button>
                       <button
-                        onClick={() => handleDeleteRule(rule.id)}
+                        onClick={() => handleDeleteRule(rule)}
                         className="p-1.5 hover:bg-red-50 rounded"
                       >
                         <Trash2 className="w-4 h-4 text-red-600" />
@@ -366,7 +381,7 @@ export function AdminSettings() {
                     onChange={e => setNewRule({ ...newRule, dayOfWeek: parseInt(e.target.value) })}
                     className="px-3 py-2 border rounded-lg font-body"
                   >
-                    {['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'].map((day, idx) => (
+                    {days.map((day, idx) => (
                       <option key={idx} value={idx}>{day}</option>
                     ))}
                   </select>
@@ -449,6 +464,59 @@ export function AdminSettings() {
             <span>{saving ? 'Enregistrement...' : 'Enregistrer les paramètres emails'}</span>
           </button>
         </div>
+
+        {/* ✅ NOUVELLE MODALE : Confirmation de suppression */}
+        {showDeleteModal && ruleToDelete && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70] p-4">
+            <div className="bg-white rounded-lg p-8 max-w-md w-full shadow-2xl">
+              {/* Icône d'alerte */}
+              <div className="flex justify-center mb-6">
+                <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center">
+                  <Trash2 className="w-12 h-12 text-red-600" />
+                </div>
+              </div>
+
+              {/* Titre */}
+              <h3 className="font-title text-2xl font-bold text-text text-center mb-2">
+                Supprimer cette disponibilité ?
+              </h3>
+
+              {/* Message */}
+              <p className="font-body text-center text-gray-600 mb-6">
+                Cette action est irréversible. Cette plage horaire sera définitivement supprimée.
+              </p>
+
+              {/* Détails de la règle */}
+              <div className="bg-red-50 border-l-4 border-red-500 rounded-lg p-4 mb-6">
+                <p className="font-body text-sm text-gray-700 mb-2">
+                  <strong>Jour :</strong> {days[ruleToDelete.dayOfWeek]}
+                </p>
+                <p className="font-body text-sm text-gray-700">
+                  <strong>Horaire :</strong> {ruleToDelete.startTime} - {ruleToDelete.endTime}
+                </p>
+              </div>
+
+              {/* Boutons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setRuleToDelete(null);
+                  }}
+                  className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg font-body font-semibold hover:bg-gray-50 transition"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={confirmDeleteRule}
+                  className="flex-1 px-6 py-3 bg-red-600 text-white rounded-lg font-body font-semibold hover:bg-red-700 transition shadow-md hover:shadow-lg"
+                >
+                  Supprimer
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

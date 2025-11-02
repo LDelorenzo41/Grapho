@@ -35,6 +35,14 @@ export function AdminDashboard() {
   const [conflictingAppointments, setConflictingAppointments] = useState<Appointment[]>([]);
   const [pendingAction, setPendingAction] = useState<'add' | 'edit' | null>(null);
 
+  // État pour la modale de confirmation de suppression
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [appointmentToDelete, setAppointmentToDelete] = useState<Appointment | null>(null);
+
+  // ✅ NOUVEAU : État pour la pagination des prochains rendez-vous
+  const [currentPage, setCurrentPage] = useState(1);
+  const appointmentsPerPage = 10;
+
   useEffect(() => {
     loadData();
   }, []);
@@ -210,13 +218,20 @@ export function AdminDashboard() {
     setPendingAction(null);
   };
 
-  const handleDeleteAppointment = async () => {
+  const handleDeleteAppointment = () => {
     if (!selectedAppointment) return;
-    if (!confirm('Voulez-vous vraiment supprimer ce rendez-vous ?')) return;
+    setAppointmentToDelete(selectedAppointment);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteAppointment = async () => {
+    if (!appointmentToDelete) return;
 
     try {
-      await dataAdapter.appointments.delete(selectedAppointment.id);
+      await dataAdapter.appointments.delete(appointmentToDelete.id);
+      setShowDeleteModal(false);
       setShowEditModal(false);
+      setAppointmentToDelete(null);
       setSelectedAppointment(null);
       await loadData();
       alert('Rendez-vous supprimé avec succès !');
@@ -242,9 +257,23 @@ export function AdminDashboard() {
     setShowEditModal(true);
   };
 
-  const upcomingAppointments = appointments.filter(apt =>
-    apt.status === 'scheduled' && new Date(apt.startTime) > new Date()
-  );
+  // ✅ AMÉLIORATION : Filtrer et trier tous les prochains rendez-vous
+  const upcomingAppointments = appointments
+    .filter(apt => apt.status === 'scheduled' && new Date(apt.startTime) > new Date())
+    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()); // Tri par date croissante
+
+  // Pagination
+  const totalPages = Math.ceil(upcomingAppointments.length / appointmentsPerPage);
+  const startIndex = (currentPage - 1) * appointmentsPerPage;
+  const endIndex = startIndex + appointmentsPerPage;
+  const currentAppointments = upcomingAppointments.slice(startIndex, endIndex);
+
+  // Réinitialiser la page si on supprime un RDV et qu'on se retrouve sur une page vide
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   // Calculer les documents déposés (par l'admin) et reçus (des clients)
   const myDocuments = documents.filter(doc => user && doc.uploadedBy === user.id);
@@ -338,60 +367,171 @@ export function AdminDashboard() {
           />
         </div>
 
+        {/* ✅ NOUVELLE SECTION : Prochains rendez-vous avec pagination et 2 colonnes */}
         <div className="bg-white rounded-lg shadow-sm border p-6">
-          <h2 className="font-title text-2xl font-bold text-text mb-4">Prochains rendez-vous</h2>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="font-title text-2xl font-bold text-text">
+              Prochains rendez-vous
+              {upcomingAppointments.length > 0 && (
+                <span className="ml-3 text-lg font-normal text-gray-500">
+                  ({upcomingAppointments.length} au total)
+                </span>
+              )}
+            </h2>
+          </div>
+
           {upcomingAppointments.length === 0 ? (
-            <p className="font-body text-gray-600">Aucun rendez-vous à venir</p>
+            <p className="font-body text-gray-600 text-center py-8">Aucun rendez-vous à venir</p>
           ) : (
-            <div className="space-y-3">
-              {upcomingAppointments.slice(0, 5).map(apt => {
-                const client = clients.find(c => c.id === apt.clientId);
-                return (
-                  <div key={apt.id} className="border-l-4 border-primary pl-4 py-2 flex items-center justify-between group">
-                    <div>
-                      <p className="font-body font-semibold text-text">
-                        {client?.firstName} {client?.lastName}
-                      </p>
-                      <p className="font-body text-sm text-gray-600">
-                        {new Date(apt.startTime).toLocaleString('fr-FR')}
-                      </p>
-                      {apt.notes && (
-                        <p className="font-body text-xs text-gray-500 mt-1">{apt.notes}</p>
-                      )}
+            <>
+              {/* Grille 2 colonnes responsive */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+                {currentAppointments.map(apt => {
+                  const client = clients.find(c => c.id === apt.clientId);
+                  return (
+                    <div key={apt.id} className="border-l-4 border-primary pl-4 py-3 bg-gray-50 rounded-r-lg flex items-start justify-between group hover:bg-gray-100 transition">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-body font-semibold text-text truncate">
+                          {client?.firstName} {client?.lastName}
+                        </p>
+                        <p className="font-body text-sm text-gray-700 mt-1">
+                          📅 {new Date(apt.startTime).toLocaleDateString('fr-FR', {
+                            weekday: 'long',
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric',
+                          })}
+                        </p>
+                        <p className="font-body text-sm text-gray-700">
+                          🕐 {new Date(apt.startTime).toLocaleTimeString('fr-FR', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </p>
+                        {apt.notes && (
+                          <p className="font-body text-xs text-gray-500 mt-2 italic line-clamp-2">
+                            {apt.notes}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center space-x-1 ml-2 opacity-0 group-hover:opacity-100 transition">
+                        <button
+                          onClick={() => openEditModal(apt)}
+                          className="p-2 hover:bg-blue-100 rounded-lg transition"
+                          title="Modifier"
+                        >
+                          <Edit2 className="w-4 h-4 text-blue-600" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            setAppointmentToDelete(apt);
+                            setShowDeleteModal(true);
+                          }}
+                          className="p-2 hover:bg-red-100 rounded-lg transition"
+                          title="Supprimer"
+                        >
+                          <Trash2 className="w-4 h-4 text-red-600" />
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition">
-                      <button
-                        onClick={() => openEditModal(apt)}
-                        className="p-2 hover:bg-gray-100 rounded-lg transition"
-                        title="Modifier"
-                      >
-                        <Edit2 className="w-4 h-4 text-gray-600" />
-                      </button>
-                      <button
-                        onClick={async () => {
-                          if (confirm('Voulez-vous vraiment supprimer ce rendez-vous ?')) {
-                            try {
-                              await dataAdapter.appointments.delete(apt.id);
-                              await loadData();
-                              alert('Rendez-vous supprimé avec succès !');
-                            } catch (error) {
-                              console.error('Error deleting appointment:', error);
-                              alert('Erreur lors de la suppression');
-                            }
-                          }
-                        }}
-                        className="p-2 hover:bg-red-100 rounded-lg transition"
-                        title="Supprimer"
-                      >
-                        <Trash2 className="w-4 h-4 text-red-600" />
-                      </button>
-                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Navigation pagination */}
+              {totalPages > 1 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between pt-4 border-t gap-4">
+                  <p className="font-body text-sm text-gray-600 text-center sm:text-left">
+                    Page {currentPage} sur {totalPages} • {startIndex + 1}-{Math.min(endIndex, upcomingAppointments.length)} sur {upcomingAppointments.length}
+                  </p>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                      className="px-4 py-2 border border-gray-300 rounded-lg font-body text-sm hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Précédent
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                      className="px-4 py-2 border border-gray-300 rounded-lg font-body text-sm hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Suivant
+                    </button>
                   </div>
-                );
-              })}
-            </div>
+                </div>
+              )}
+            </>
           )}
         </div>
+
+        {/* Modale de confirmation de suppression */}
+        {showDeleteModal && appointmentToDelete && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70] p-4">
+            <div className="bg-white rounded-lg p-8 max-w-md w-full shadow-2xl">
+              {/* Icône d'alerte */}
+              <div className="flex justify-center mb-6">
+                <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center">
+                  <Trash2 className="w-12 h-12 text-red-600" />
+                </div>
+              </div>
+
+              {/* Titre */}
+              <h3 className="font-title text-2xl font-bold text-text text-center mb-2">
+                Supprimer ce rendez-vous ?
+              </h3>
+
+              {/* Message */}
+              <p className="font-body text-center text-gray-600 mb-6">
+                Cette action est irréversible. Le rendez-vous sera définitivement supprimé.
+              </p>
+
+              {/* Détails du rendez-vous */}
+              <div className="bg-red-50 border-l-4 border-red-500 rounded-lg p-4 mb-6">
+                <p className="font-body text-sm text-gray-700 mb-2">
+                  <strong>Client :</strong> {clients.find(c => c.id === appointmentToDelete.clientId)?.firstName} {clients.find(c => c.id === appointmentToDelete.clientId)?.lastName}
+                </p>
+                <p className="font-body text-sm text-gray-700 mb-2">
+                  <strong>Date :</strong> {new Date(appointmentToDelete.startTime).toLocaleDateString('fr-FR', {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric'
+                  })}
+                </p>
+                <p className="font-body text-sm text-gray-700">
+                  <strong>Heure :</strong> {new Date(appointmentToDelete.startTime).toLocaleTimeString('fr-FR', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })} - {new Date(appointmentToDelete.endTime).toLocaleTimeString('fr-FR', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </p>
+              </div>
+
+              {/* Boutons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setAppointmentToDelete(null);
+                  }}
+                  className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg font-body font-semibold hover:bg-gray-50 transition"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={confirmDeleteAppointment}
+                  className="flex-1 px-6 py-3 bg-red-600 text-white rounded-lg font-body font-semibold hover:bg-red-700 transition shadow-md hover:shadow-lg"
+                >
+                  Supprimer
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Modale d'alerte de conflit */}
         {showConflictModal && (
