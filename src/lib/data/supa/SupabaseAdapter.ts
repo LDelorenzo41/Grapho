@@ -490,7 +490,7 @@ export const createSupabaseAdapter = (): DataAdapter => {
         const { data, error } = await supabase
           .from('consents')
           .select('*')
-          .eq('userId', userId);
+          .eq('user_id', userId)
         if (error) throw error;
         return data || [];
       },
@@ -521,7 +521,20 @@ export const createSupabaseAdapter = (): DataAdapter => {
         if (!supabase) return [];
         const { data, error } = await supabase.from('sessions').select('*');
         if (error) throw error;
-        return data || [];
+        // Conversion snake_case → camelCase
+        return (data || []).map(s => ({
+          id: s.id,
+          clientId: s.client_id,
+          appointmentId: s.appointment_id,
+          date: s.date,
+          duration: s.duration,
+          sessionNumber: s.session_number,
+          summary: s.summary,
+          progress: s.progress,
+          objectives: s.objectives,
+          createdAt: s.created_at,
+          updatedAt: s.updated_at,
+        }));
       },
       async getById(id: string) {
         if (!supabase) return null;
@@ -531,38 +544,120 @@ export const createSupabaseAdapter = (): DataAdapter => {
           .eq('id', id)
           .maybeSingle();
         if (error) throw error;
-        return data;
+        if (!data) return null;
+        // Conversion snake_case → camelCase
+        return {
+          id: data.id,
+          clientId: data.client_id,
+          appointmentId: data.appointment_id,
+          date: data.date,
+          duration: data.duration,
+          sessionNumber: data.session_number,
+          summary: data.summary,
+          progress: data.progress,
+          objectives: data.objectives,
+          createdAt: data.created_at,
+          updatedAt: data.updated_at,
+        };
       },
       async getByClientId(clientId: string) {
         if (!supabase) return [];
         const { data, error } = await supabase
           .from('sessions')
           .select('*')
-          .eq('clientId', clientId)
+          .eq('client_id', clientId)
           .order('date', { ascending: false });
         if (error) throw error;
-        return data || [];
+        // Conversion snake_case → camelCase
+        return (data || []).map(s => ({
+          id: s.id,
+          clientId: s.client_id,
+          appointmentId: s.appointment_id,
+          date: s.date,
+          duration: s.duration,
+          sessionNumber: s.session_number,
+          summary: s.summary,
+          progress: s.progress,
+          objectives: s.objectives,
+          createdAt: s.created_at,
+          updatedAt: s.updated_at,
+        }));
       },
       async create(session) {
         if (!supabase) throw new Error('Supabase not configured');
+        
+        // Conversion camelCase → snake_case pour l'insertion
+        const dbSession: any = {
+          client_id: session.clientId,
+          date: session.date,
+          duration: session.duration,
+          session_number: session.sessionNumber,
+          summary: session.summary,
+          progress: session.progress,
+        };
+        
+        // Champs optionnels
+        if (session.appointmentId) dbSession.appointment_id = session.appointmentId;
+        if (session.objectives) dbSession.objectives = session.objectives;
+        
         const { data, error } = await supabase
           .from('sessions')
-          .insert(session)
+          .insert(dbSession)
           .select()
           .single();
         if (error) throw error;
-        return data;
+        
+        // Conversion snake_case → camelCase pour le retour
+        return {
+          id: data.id,
+          clientId: data.client_id,
+          appointmentId: data.appointment_id,
+          date: data.date,
+          duration: data.duration,
+          sessionNumber: data.session_number,
+          summary: data.summary,
+          progress: data.progress,
+          objectives: data.objectives,
+          createdAt: data.created_at,
+          updatedAt: data.updated_at,
+        };
       },
       async update(id: string, updates: Partial<Session>) {
         if (!supabase) throw new Error('Supabase not configured');
+        
+        // Conversion camelCase → snake_case pour la mise à jour
+        const dbUpdates: any = {};
+        if (updates.clientId !== undefined) dbUpdates.client_id = updates.clientId;
+        if (updates.appointmentId !== undefined) dbUpdates.appointment_id = updates.appointmentId;
+        if (updates.date !== undefined) dbUpdates.date = updates.date;
+        if (updates.duration !== undefined) dbUpdates.duration = updates.duration;
+        if (updates.sessionNumber !== undefined) dbUpdates.session_number = updates.sessionNumber;
+        if (updates.summary !== undefined) dbUpdates.summary = updates.summary;
+        if (updates.progress !== undefined) dbUpdates.progress = updates.progress;
+        if (updates.objectives !== undefined) dbUpdates.objectives = updates.objectives;
+        
         const { data, error } = await supabase
           .from('sessions')
-          .update(updates)
+          .update(dbUpdates)
           .eq('id', id)
           .select()
           .single();
         if (error) throw error;
-        return data;
+        
+        // Conversion snake_case → camelCase pour le retour
+        return {
+          id: data.id,
+          clientId: data.client_id,
+          appointmentId: data.appointment_id,
+          date: data.date,
+          duration: data.duration,
+          sessionNumber: data.session_number,
+          summary: data.summary,
+          progress: data.progress,
+          objectives: data.objectives,
+          createdAt: data.created_at,
+          updatedAt: data.updated_at,
+        };
       },
       async delete(id: string) {
         if (!supabase) throw new Error('Supabase not configured');
@@ -575,7 +670,18 @@ export const createSupabaseAdapter = (): DataAdapter => {
         if (!supabase) return [];
         const { data, error } = await supabase.from('prescriptions').select('*');
         if (error) throw error;
-        return data || [];
+        // Conversion snake_case → camelCase
+        return (data || []).map(p => ({
+          id: p.id,
+          clientId: p.client_id,
+          sessionId: p.session_id,
+          title: p.title,
+          description: p.description,
+          exercises: p.exercises,
+          frequency: p.frequency,
+          duration: p.duration,
+          createdAt: p.created_at,
+        }));
       },
       async getById(id: string) {
         if (!supabase) return null;
@@ -585,38 +691,110 @@ export const createSupabaseAdapter = (): DataAdapter => {
           .eq('id', id)
           .maybeSingle();
         if (error) throw error;
-        return data;
+        if (!data) return null;
+        // Conversion snake_case → camelCase
+        return {
+          id: data.id,
+          clientId: data.client_id,
+          sessionId: data.session_id,
+          title: data.title,
+          description: data.description,
+          exercises: data.exercises,
+          frequency: data.frequency,
+          duration: data.duration,
+          createdAt: data.created_at,
+        };
       },
       async getByClientId(clientId: string) {
         if (!supabase) return [];
         const { data, error } = await supabase
           .from('prescriptions')
           .select('*')
-          .eq('clientId', clientId)
-          .order('createdAt', { ascending: false });
+          .eq('client_id', clientId)
+          .order('created_at', { ascending: false });
         if (error) throw error;
-        return data || [];
+        // Conversion snake_case → camelCase
+        return (data || []).map(p => ({
+          id: p.id,
+          clientId: p.client_id,
+          sessionId: p.session_id,
+          title: p.title,
+          description: p.description,
+          exercises: p.exercises,
+          frequency: p.frequency,
+          duration: p.duration,
+          createdAt: p.created_at,
+        }));
       },
       async create(prescription) {
         if (!supabase) throw new Error('Supabase not configured');
+        
+        // Conversion camelCase → snake_case pour l'insertion
+        const dbPrescription: any = {
+          client_id: prescription.clientId,
+          title: prescription.title,
+          description: prescription.description,
+          exercises: prescription.exercises,
+        };
+        
+        // Champs optionnels
+        if (prescription.sessionId) dbPrescription.session_id = prescription.sessionId;
+        if (prescription.frequency) dbPrescription.frequency = prescription.frequency;
+        if (prescription.duration) dbPrescription.duration = prescription.duration;
+        
         const { data, error } = await supabase
           .from('prescriptions')
-          .insert(prescription)
+          .insert(dbPrescription)
           .select()
           .single();
         if (error) throw error;
-        return data;
+        
+        // Conversion snake_case → camelCase pour le retour
+        return {
+          id: data.id,
+          clientId: data.client_id,
+          sessionId: data.session_id,
+          title: data.title,
+          description: data.description,
+          exercises: data.exercises,
+          frequency: data.frequency,
+          duration: data.duration,
+          createdAt: data.created_at,
+        };
       },
       async update(id: string, updates: Partial<Prescription>) {
         if (!supabase) throw new Error('Supabase not configured');
+        
+        // Conversion camelCase → snake_case pour la mise à jour
+        const dbUpdates: any = {};
+        if (updates.clientId !== undefined) dbUpdates.client_id = updates.clientId;
+        if (updates.sessionId !== undefined) dbUpdates.session_id = updates.sessionId;
+        if (updates.title !== undefined) dbUpdates.title = updates.title;
+        if (updates.description !== undefined) dbUpdates.description = updates.description;
+        if (updates.exercises !== undefined) dbUpdates.exercises = updates.exercises;
+        if (updates.frequency !== undefined) dbUpdates.frequency = updates.frequency;
+        if (updates.duration !== undefined) dbUpdates.duration = updates.duration;
+        
         const { data, error } = await supabase
           .from('prescriptions')
-          .update(updates)
+          .update(dbUpdates)
           .eq('id', id)
           .select()
           .single();
         if (error) throw error;
-        return data;
+        
+        // Conversion snake_case → camelCase pour le retour
+        return {
+          id: data.id,
+          clientId: data.client_id,
+          sessionId: data.session_id,
+          title: data.title,
+          description: data.description,
+          exercises: data.exercises,
+          frequency: data.frequency,
+          duration: data.duration,
+          createdAt: data.created_at,
+        };
       },
       async delete(id: string) {
         if (!supabase) throw new Error('Supabase not configured');

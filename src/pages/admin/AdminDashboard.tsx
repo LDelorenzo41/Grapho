@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Users, Calendar as CalendarIcon, FileText, Plus, X, Edit2, Trash2, MessageSquare } from 'lucide-react';
+import { Users, Calendar as CalendarIcon, FileText, Plus, X, Edit2, Trash2, MessageSquare, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { dataAdapter, type User, type Appointment, type Document, type Message } from '../../lib/data';
 import { Calendar } from '../../components/Calendar/Calendar';
@@ -30,6 +30,11 @@ export function AdminDashboard() {
     notes: '',
   });
 
+  // Nouveaux états pour la gestion des conflits
+  const [showConflictModal, setShowConflictModal] = useState(false);
+  const [conflictingAppointments, setConflictingAppointments] = useState<Appointment[]>([]);
+  const [pendingAction, setPendingAction] = useState<'add' | 'edit' | null>(null);
+
   useEffect(() => {
     loadData();
   }, []);
@@ -53,8 +58,68 @@ export function AdminDashboard() {
   }
 };
 
+  /**
+   * Vérifie si un rendez-vous chevauche avec des rendez-vous existants
+   * @param startTime - Date/heure de début (ISO string)
+   * @param endTime - Date/heure de fin (ISO string)
+   * @param excludeAppointmentId - ID du rendez-vous à exclure (pour l'édition)
+   * @returns Liste des rendez-vous en conflit
+   */
+  const checkAppointmentConflicts = (
+    startTime: string,
+    endTime: string,
+    excludeAppointmentId?: string
+  ): Appointment[] => {
+    const newStart = new Date(startTime);
+    const newEnd = new Date(endTime);
+
+    return appointments.filter(apt => {
+      // Ignorer les rendez-vous annulés
+      if (apt.status === 'cancelled') return false;
+
+      // Ignorer le rendez-vous en cours d'édition
+      if (excludeAppointmentId && apt.id === excludeAppointmentId) return false;
+
+      const existingStart = new Date(apt.startTime);
+      const existingEnd = new Date(apt.endTime);
+
+      // Vérifier les chevauchements :
+      // 1. Le nouveau créneau commence pendant un RDV existant
+      // 2. Le nouveau créneau se termine pendant un RDV existant
+      // 3. Le nouveau créneau englobe complètement un RDV existant
+      return (
+        (newStart >= existingStart && newStart < existingEnd) ||
+        (newEnd > existingStart && newEnd <= existingEnd) ||
+        (newStart <= existingStart && newEnd >= existingEnd)
+      );
+    });
+  };
+
   const handleAddAppointment = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    const startDateTime = new Date(`${newAppointment.date}T${newAppointment.startTime}`);
+    const endDateTime = new Date(startDateTime.getTime() + parseInt(newAppointment.duration) * 60000);
+
+    // Vérifier les conflits
+    const conflicts = checkAppointmentConflicts(
+      startDateTime.toISOString(),
+      endDateTime.toISOString()
+    );
+
+    if (conflicts.length > 0) {
+      // Afficher la modale de conflit
+      setConflictingAppointments(conflicts);
+      setPendingAction('add');
+      setShowConflictModal(true);
+      return;
+    }
+
+    // Pas de conflit, créer directement
+    await createAppointment();
+  };
+
+  const createAppointment = async () => {
     try {
       const startDateTime = new Date(`${newAppointment.date}T${newAppointment.startTime}`);
       const endDateTime = new Date(startDateTime.getTime() + parseInt(newAppointment.duration) * 60000);
@@ -68,8 +133,10 @@ export function AdminDashboard() {
       });
 
       setShowAddModal(false);
+      setShowConflictModal(false);
       setNewAppointment({ clientId: '', date: '', startTime: '', duration: '60', notes: '' });
       await loadData();
+      alert('Rendez-vous créé avec succès !');
     } catch (error) {
       console.error('Error adding appointment:', error);
       alert('Erreur lors de l\'ajout du rendez-vous');
@@ -80,6 +147,31 @@ export function AdminDashboard() {
     e.preventDefault();
     if (!selectedAppointment) return;
 
+    const startDateTime = new Date(`${editAppointment.date}T${editAppointment.startTime}`);
+    const endDateTime = new Date(startDateTime.getTime() + parseInt(editAppointment.duration) * 60000);
+
+    // Vérifier les conflits (en excluant le rendez-vous en cours d'édition)
+    const conflicts = checkAppointmentConflicts(
+      startDateTime.toISOString(),
+      endDateTime.toISOString(),
+      selectedAppointment.id
+    );
+
+    if (conflicts.length > 0) {
+      // Afficher la modale de conflit
+      setConflictingAppointments(conflicts);
+      setPendingAction('edit');
+      setShowConflictModal(true);
+      return;
+    }
+
+    // Pas de conflit, modifier directement
+    await updateAppointment();
+  };
+
+  const updateAppointment = async () => {
+    if (!selectedAppointment) return;
+
     try {
       const startDateTime = new Date(`${editAppointment.date}T${editAppointment.startTime}`);
       const endDateTime = new Date(startDateTime.getTime() + parseInt(editAppointment.duration) * 60000);
@@ -88,10 +180,12 @@ export function AdminDashboard() {
         clientId: editAppointment.clientId,
         startTime: startDateTime.toISOString(),
         endTime: endDateTime.toISOString(),
+        status: selectedAppointment.status,
         notes: editAppointment.notes,
       });
 
       setShowEditModal(false);
+      setShowConflictModal(false);
       setSelectedAppointment(null);
       await loadData();
       alert('Rendez-vous modifié avec succès !');
@@ -99,6 +193,21 @@ export function AdminDashboard() {
       console.error('Error updating appointment:', error);
       alert('Erreur lors de la modification du rendez-vous');
     }
+  };
+
+  const handleConfirmWithConflict = async () => {
+    if (pendingAction === 'add') {
+      await createAppointment();
+    } else if (pendingAction === 'edit') {
+      await updateAppointment();
+    }
+    setPendingAction(null);
+  };
+
+  const handleCancelConflict = () => {
+    setShowConflictModal(false);
+    setConflictingAppointments([]);
+    setPendingAction(null);
   };
 
   const handleDeleteAppointment = async () => {
@@ -284,6 +393,89 @@ export function AdminDashboard() {
           )}
         </div>
 
+        {/* Modale d'alerte de conflit */}
+        {showConflictModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
+            <div className="bg-white rounded-lg p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto">
+              <div className="flex items-start space-x-3 mb-4">
+                <div className="flex-shrink-0 w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                  <AlertTriangle className="w-6 h-6 text-orange-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-title text-xl font-bold text-text mb-1">
+                    Conflit de rendez-vous détecté
+                  </h3>
+                  <p className="font-body text-sm text-gray-600">
+                    Ce créneau chevauche {conflictingAppointments.length} rendez-vous existant(s).
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
+                <h4 className="font-body font-semibold text-text mb-3">
+                  Rendez-vous en conflit :
+                </h4>
+                <div className="space-y-3">
+                  {conflictingAppointments.map(apt => {
+                    const client = clients.find(c => c.id === apt.clientId);
+                    return (
+                      <div key={apt.id} className="bg-white border border-orange-300 rounded-lg p-3">
+                        <p className="font-body font-semibold text-text">
+                          {client?.firstName} {client?.lastName}
+                        </p>
+                        <p className="font-body text-sm text-gray-700 mt-1">
+                          📅 {new Date(apt.startTime).toLocaleDateString('fr-FR', {
+                            weekday: 'long',
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric'
+                          })}
+                        </p>
+                        <p className="font-body text-sm text-gray-700">
+                          🕐 {new Date(apt.startTime).toLocaleTimeString('fr-FR', {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })} - {new Date(apt.endTime).toLocaleTimeString('fr-FR', {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                        {apt.notes && (
+                          <p className="font-body text-xs text-gray-600 mt-2 italic">
+                            Note : {apt.notes}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-3 mb-4">
+                <p className="font-body text-sm text-yellow-800">
+                  ⚠️ <strong>Attention :</strong> Créer ce rendez-vous peut entraîner des doubles réservations. Voulez-vous continuer malgré tout ?
+                </p>
+              </div>
+
+              <div className="flex space-x-3">
+                <button
+                  onClick={handleCancelConflict}
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition font-body font-semibold"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleConfirmWithConflict}
+                  className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition font-body font-semibold"
+                >
+                  Créer quand même
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modale de modification */}
         {showEditModal && selectedAppointment && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-lg p-6 max-w-md w-full">
@@ -309,6 +501,27 @@ export function AdminDashboard() {
                         {client.firstName} {client.lastName}
                       </option>
                     ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-body text-sm font-medium text-text mb-2">Statut *</label>
+                  <select
+                    required
+                    value={selectedAppointment?.status || 'scheduled'}
+                    onChange={(e) => {
+                      if (selectedAppointment) {
+                        setSelectedAppointment({
+                          ...selectedAppointment,
+                          status: e.target.value as 'scheduled' | 'completed' | 'cancelled'
+                        });
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent font-body"
+                  >
+                    <option value="scheduled">Prévu</option>
+                    <option value="completed">Terminé</option>
+                    <option value="cancelled">Annulé</option>
                   </select>
                 </div>
 
@@ -386,6 +599,7 @@ export function AdminDashboard() {
           </div>
         )}
 
+        {/* Modale d'ajout */}
         {showAddModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-lg p-6 max-w-md w-full">
