@@ -1,10 +1,20 @@
 import { useState, useEffect } from 'react';
-import { Calendar, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, Clock, ChevronLeft, ChevronRight, CheckCircle } from 'lucide-react';
 import { dataAdapter, type AvailableSlot } from '../lib/data';
-import { addDays, startOfWeek, format, isSameDay, parseISO } from '../lib/utils/date';
+import { addDays, startOfWeek, format, parseISO } from '../lib/utils/date';
 
 interface BookingCalendarProps {
   onBookingComplete?: () => void;
+}
+
+// Helper pour obtenir la timezone locale au format +01:00 ou +02:00
+function getLocalTimezoneOffset(dateString: string): string {
+  const date = new Date(dateString);
+  const offset = -date.getTimezoneOffset(); // Minutes, inversé
+  const hours = Math.floor(Math.abs(offset) / 60);
+  const minutes = Math.abs(offset) % 60;
+  const sign = offset >= 0 ? '+' : '-';
+  return `${sign}${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 }
 
 export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
@@ -21,6 +31,12 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
     confirmPassword: '',
   });
   const [showBookingForm, setShowBookingForm] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [confirmedAppointment, setConfirmedAppointment] = useState<{
+    date: string;
+    startTime: string;
+    endTime: string;
+  } | null>(null);
 
   useEffect(() => {
     loadAvailableSlots();
@@ -74,18 +90,25 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
         return;
       }
 
-      // ✅ CORRECTION: Passer le mot de passe lors de la création
       const newUser = await dataAdapter.users.create({
         email: bookingData.email,
         role: 'client',
         firstName: bookingData.firstName,
         lastName: bookingData.lastName,
         phone: bookingData.phone,
-        password: bookingData.password, // ← Ajout du mot de passe
+        password: bookingData.password,
       });
 
-      const startTime = `${selectedSlot.date}T${selectedSlot.startTime}`;
-      const endTime = `${selectedSlot.date}T${selectedSlot.endTime}`;
+      // ✅ CORRECTION TIMEZONE: Ajouter la timezone locale explicitement
+      const baseStartTime = `${selectedSlot.date}T${selectedSlot.startTime}`;
+      const baseEndTime = `${selectedSlot.date}T${selectedSlot.endTime}`;
+      const timezoneOffset = getLocalTimezoneOffset(baseStartTime);
+      
+      // Retirer les secondes (:00) et ajouter la timezone
+      const startTime = `${baseStartTime.slice(0, -3)}${timezoneOffset}`;
+      const endTime = `${baseEndTime.slice(0, -3)}${timezoneOffset}`;
+
+      console.log('🕐 Création RDV avec timezone:', { startTime, endTime });
 
       await dataAdapter.appointments.create({
         clientId: newUser.id,
@@ -95,16 +118,31 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
         notes: 'Première consultation',
       });
 
-      alert('Votre compte a été créé et votre rendez-vous est confirmé ! Vous pouvez maintenant vous connecter avec votre email et mot de passe.');
+      // Stocker les informations pour la modale de succès
+      setConfirmedAppointment({
+        date: selectedSlot.date,
+        startTime: selectedSlot.startTime,
+        endTime: selectedSlot.endTime,
+      });
+
+      // Fermer le formulaire et afficher la modale de succès
       setShowBookingForm(false);
+      setShowSuccessModal(true);
       setSelectedSlot(null);
       setBookingData({ firstName: '', lastName: '', email: '', phone: '', password: '', confirmPassword: '' });
       loadAvailableSlots();
-      onBookingComplete?.();
+      // ✅ CORRECTION: onBookingComplete retiré d'ici
+      
     } catch (error) {
       console.error('Error booking appointment:', error);
       alert('Erreur lors de la réservation. Veuillez réessayer.');
     }
+  };
+
+  const handleCloseSuccessModal = () => {
+    setShowSuccessModal(false);
+    setConfirmedAppointment(null);
+    onBookingComplete?.(); // ✅ CORRECTION: Appel déplacé ici pour éviter démontage prématuré
   };
 
   const getWeekDays = () => {
@@ -149,13 +187,13 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
       <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
         {weekDays.map((day, index) => {
           const slots = getSlotsForDate(day);
-          const dayName = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'][day.getDay()];
+          const dayName = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'][day.getDay()];
 
           return (
             <div key={index} className="border rounded-lg p-3">
               <div className="text-center mb-3">
                 <p className="font-body text-sm text-gray-600">{dayName}</p>
-                <p className="font-body font-semibold text-text">{format(day, 'dd MMM')}</p>
+                <p className="font-body font-semibold text-text">{format(day, 'dd-MM')}</p>
               </div>
 
               <div className="space-y-2">
@@ -178,6 +216,7 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
         })}
       </div>
 
+      {/* Modale de formulaire de réservation */}
       {showBookingForm && selectedSlot && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
@@ -194,7 +233,7 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
               <div className="flex items-center space-x-2 text-primary mb-2">
                 <Calendar className="w-4 h-4" />
                 <span className="font-body font-semibold">
-                  {format(parseISO(selectedSlot.date), 'EEEE dd MMMM yyyy')}
+                  {format(parseISO(selectedSlot.date), 'EEEE dd MM yyyy')}
                 </span>
               </div>
               <div className="flex items-center space-x-2 text-primary">
@@ -309,6 +348,68 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modale de confirmation de succès */}
+      {showSuccessModal && confirmedAppointment && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-8 max-w-md w-full shadow-2xl">
+            {/* Icône de succès */}
+            <div className="flex justify-center mb-6">
+              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center">
+                <CheckCircle className="w-12 h-12 text-green-600" />
+              </div>
+            </div>
+
+            {/* Titre */}
+            <h3 className="font-title text-2xl font-bold text-text text-center mb-2">
+              Réservation confirmée !
+            </h3>
+
+            {/* Message de succès */}
+            <p className="font-body text-center text-gray-600 mb-6">
+              Votre compte a été créé avec succès et votre rendez-vous est confirmé.
+            </p>
+
+            {/* Détails du rendez-vous */}
+            <div className="bg-gradient-to-r from-primary/10 to-secondary/10 rounded-lg p-4 mb-6 border-l-4 border-primary">
+              <p className="font-body text-sm text-gray-600 mb-3">
+                <strong>Rendez-vous confirmé pour :</strong>
+              </p>
+              <div className="space-y-2">
+                <div className="flex items-center space-x-3 text-text">
+                  <Calendar className="w-5 h-5 text-primary flex-shrink-0" />
+                  <span className="font-body font-semibold">
+                    {format(parseISO(confirmedAppointment.date), 'EEEE dd MM yyyy')}
+                  </span>
+                </div>
+                <div className="flex items-center space-x-3 text-text">
+                  <Clock className="w-5 h-5 text-primary flex-shrink-0" />
+                  <span className="font-body font-semibold">
+                    {confirmedAppointment.startTime.slice(0, 5)} - {confirmedAppointment.endTime.slice(0, 5)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Informations de connexion */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <p className="font-body text-sm text-blue-900">
+                <strong>📧 Prochaine étape :</strong> Connectez-vous avec votre email et mot de passe pour accéder à votre espace client et gérer vos rendez-vous.
+              </p>
+            </div>
+
+            {/* Bouton de fermeture */}
+            <div className="flex gap-3">
+              <button
+                onClick={handleCloseSuccessModal}
+                className="flex-1 px-6 py-3 bg-primary text-white rounded-lg font-body font-semibold hover:bg-primary/90 transition shadow-md hover:shadow-lg"
+              >
+                J'ai compris
+              </button>
+            </div>
           </div>
         </div>
       )}
