@@ -12,6 +12,10 @@ export function AdminMessages() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   
+  // ✅ NOUVEAU : État pour la modale de confirmation de suppression
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [messageToDelete, setMessageToDelete] = useState<Message | null>(null);
+  
   const [composeForm, setComposeForm] = useState({
     recipientId: '',
     selectAll: false,
@@ -103,13 +107,22 @@ export function AdminMessages() {
     }
   };
 
-  const handleDelete = async (messageId: string) => {
-    if (!confirm('Voulez-vous vraiment supprimer ce message ?')) return;
+  // ✅ NOUVELLE VERSION : Ouvrir la modale de confirmation au lieu de confirm()
+  const handleDelete = (message: Message) => {
+    setMessageToDelete(message);
+    setShowDeleteModal(true);
+  };
+
+  // ✅ NOUVEAU : Confirmer la suppression
+  const confirmDeleteMessage = async () => {
+    if (!messageToDelete) return;
 
     try {
-      await dataAdapter.messages.delete(messageId);
-      alert('Message supprimé avec succès !');
+      await dataAdapter.messages.delete(messageToDelete.id);
+      setShowDeleteModal(false);
+      setMessageToDelete(null);
       await loadData();
+      alert('Message supprimé avec succès !');
     } catch (error) {
       console.error('Error deleting message:', error);
       alert('Erreur lors de la suppression du message');
@@ -205,7 +218,7 @@ export function AdminMessages() {
                             <Edit2 className="w-5 h-5 text-blue-600" />
                           </button>
                           <button
-                            onClick={() => handleDelete(msg.id)}
+                            onClick={() => handleDelete(msg)}
                             className="p-2 hover:bg-red-50 rounded-lg transition"
                             title="Supprimer"
                           >
@@ -219,6 +232,62 @@ export function AdminMessages() {
             </div>
           )}
         </div>
+
+        {/* ✅ NOUVELLE MODALE : Confirmation de suppression */}
+        {showDeleteModal && messageToDelete && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70] p-4">
+            <div className="bg-white rounded-lg p-8 max-w-md w-full shadow-2xl">
+              {/* Icône d'alerte */}
+              <div className="flex justify-center mb-6">
+                <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center">
+                  <Trash2 className="w-12 h-12 text-red-600" />
+                </div>
+              </div>
+
+              {/* Titre */}
+              <h3 className="font-title text-2xl font-bold text-text text-center mb-2">
+                Supprimer ce message ?
+              </h3>
+
+              {/* Message */}
+              <p className="font-body text-center text-gray-600 mb-6">
+                Cette action est irréversible. Le message sera définitivement supprimé.
+              </p>
+
+              {/* Détails du message */}
+              <div className="bg-red-50 border-l-4 border-red-500 rounded-lg p-4 mb-6">
+                <p className="font-body text-sm text-gray-700 mb-2">
+                  <strong>Destinataire :</strong> {clients.find(c => c.id === messageToDelete.recipientId)?.firstName} {clients.find(c => c.id === messageToDelete.recipientId)?.lastName}
+                </p>
+                <p className="font-body text-sm text-gray-700 mb-2">
+                  <strong>Objet :</strong> {messageToDelete.subject}
+                </p>
+                <p className="font-body text-sm text-gray-700">
+                  <strong>Aperçu :</strong> {messageToDelete.content.slice(0, 80)}{messageToDelete.content.length > 80 ? '...' : ''}
+                </p>
+              </div>
+
+              {/* Boutons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setMessageToDelete(null);
+                  }}
+                  className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg font-body font-semibold hover:bg-gray-50 transition"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={confirmDeleteMessage}
+                  className="flex-1 px-6 py-3 bg-red-600 text-white rounded-lg font-body font-semibold hover:bg-red-700 transition shadow-md hover:shadow-lg"
+                >
+                  Supprimer
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Compose Modal */}
         {showComposeModal && (
