@@ -2,6 +2,9 @@ export type UserRole = 'admin' | 'client';
 
 export type AppointmentStatus = 'scheduled' | 'completed' | 'cancelled';
 
+// ✅ NOUVEAU : Type pour le statut du client
+export type ClientStatus = 'active' | 'completed';
+
 export interface User {
   id: string;
   email: string;
@@ -10,6 +13,7 @@ export interface User {
   lastName: string;
   phone?: string;
   dateOfBirth?: string;
+  status?: ClientStatus; // ✅ NOUVEAU : Statut du client (active par défaut)
   createdAt: string;
   updatedAt: string;
 }
@@ -67,7 +71,7 @@ export interface AvailableSlot {
 
 export interface Settings {
   id: string;
-  availabilityRules: AvailabilityRule[];  // ← LIGNE AJOUTÉE
+  availabilityRules: AvailabilityRule[];
   emailTemplates: {
     appointmentConfirmation: string;
     appointmentReminder: string;

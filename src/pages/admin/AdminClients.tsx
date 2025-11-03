@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Users, Mail, Phone, ChevronRight, ArrowLeft } from 'lucide-react';
-import { dataAdapter, type User } from '../../lib/data';
+import { Users, Mail, Phone, ChevronRight, ArrowLeft, CheckCircle, XCircle } from 'lucide-react';
+import { dataAdapter, type User, type ClientStatus } from '../../lib/data';
 
 export function AdminClients() {
   const [clients, setClients] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  // ✅ NOUVEAU : État pour le filtre de statut
+  const [statusFilter, setStatusFilter] = useState<'all' | ClientStatus>('all');
 
   useEffect(() => {
     const loadClients = async () => {
@@ -20,6 +22,12 @@ export function AdminClients() {
     };
     loadClients();
   }, []);
+
+  // ✅ NOUVEAU : Filtrer les clients selon le statut sélectionné
+  const filteredClients = clients.filter(client => {
+    if (statusFilter === 'all') return true;
+    return client.status === statusFilter;
+  });
 
   if (loading) {
     return <div className="py-16 text-center"><p className="font-body text-gray-600">Chargement...</p></div>;
@@ -38,14 +46,55 @@ export function AdminClients() {
           <h1 className="font-title text-4xl font-bold text-text">Clients</h1>
         </div>
 
-        {clients.length === 0 ? (
+        {/* ✅ NOUVEAU : Boutons de filtre par statut */}
+        <div className="mb-6 flex gap-3">
+          <button
+            onClick={() => setStatusFilter('all')}
+            className={`px-4 py-2 rounded-lg font-body font-medium transition ${
+              statusFilter === 'all'
+                ? 'bg-primary text-white'
+                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+            }`}
+          >
+            Tous ({clients.length})
+          </button>
+          <button
+            onClick={() => setStatusFilter('active')}
+            className={`px-4 py-2 rounded-lg font-body font-medium transition flex items-center gap-2 ${
+              statusFilter === 'active'
+                ? 'bg-green-600 text-white'
+                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+            }`}
+          >
+            <CheckCircle className="w-4 h-4" />
+            Actifs ({clients.filter(c => c.status === 'active' || !c.status).length})
+          </button>
+          <button
+            onClick={() => setStatusFilter('completed')}
+            className={`px-4 py-2 rounded-lg font-body font-medium transition flex items-center gap-2 ${
+              statusFilter === 'completed'
+                ? 'bg-gray-600 text-white'
+                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+            }`}
+          >
+            <XCircle className="w-4 h-4" />
+            Terminés ({clients.filter(c => c.status === 'completed').length})
+          </button>
+        </div>
+
+        {filteredClients.length === 0 ? (
           <div className="bg-white rounded-lg shadow-sm border p-8 text-center">
             <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <p className="font-body text-gray-600">Aucun client</p>
+            <p className="font-body text-gray-600">
+              {statusFilter === 'all' 
+                ? 'Aucun client' 
+                : `Aucun client avec le statut "${statusFilter === 'active' ? 'Actif' : 'Terminée'}"`
+              }
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {clients.map(client => (
+            {filteredClients.map(client => (
               <Link
                 key={client.id}
                 to={`/admin/clients/${client.id}`}
@@ -53,9 +102,23 @@ export function AdminClients() {
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <h3 className="font-title text-xl font-bold text-text mb-3 group-hover:text-primary transition">
-                      {client.firstName} {client.lastName}
-                    </h3>
+                    <div className="flex items-center gap-3 mb-3">
+                      <h3 className="font-title text-xl font-bold text-text group-hover:text-primary transition">
+                        {client.firstName} {client.lastName}
+                      </h3>
+                      {/* ✅ NOUVEAU : Badge de statut */}
+                      {client.status === 'completed' ? (
+                        <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-full flex items-center gap-1">
+                          <XCircle className="w-3 h-3" />
+                          Terminée
+                        </span>
+                      ) : (
+                        <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full flex items-center gap-1">
+                          <CheckCircle className="w-3 h-3" />
+                          Actif
+                        </span>
+                      )}
+                    </div>
                     <div className="space-y-2 font-body text-sm text-gray-700">
                       <div className="flex items-center space-x-2">
                         <Mail className="w-4 h-4 text-primary" />

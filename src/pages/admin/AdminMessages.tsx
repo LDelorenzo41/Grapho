@@ -38,7 +38,8 @@ export function AdminMessages() {
         dataAdapter.users.getAll(),
         dataAdapter.messages.getAll(),
       ]);
-      setClients(allUsers.filter(u => u.role === 'client'));
+      // ✅ MODIFIÉ : Filtrer uniquement les clients avec statut 'active'
+      setClients(allUsers.filter(u => u.role === 'client' && (u.status === 'active' || !u.status)));
       // Filter messages sent by admin
       setMessages(allMessages.filter(m => user && m.senderId === user.id));
     } catch (error) {
