@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { Calendar, Clock, ChevronLeft, ChevronRight, CheckCircle } from 'lucide-react';
 import { dataAdapter, type AvailableSlot } from '../lib/data';
 import { addDays, startOfWeek, format, parseISO } from '../lib/utils/date';
+import { sendNewAppointmentNotification } from '../lib/email';
+
 
 interface BookingCalendarProps {
   onBookingComplete?: () => void;
@@ -69,7 +71,7 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
     setShowBookingForm(true);
   };
 
-  const handleBooking = async (e: React.FormEvent) => {
+    const handleBooking = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedSlot) return;
 
@@ -117,6 +119,21 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
         status: 'scheduled',
         notes: 'Première consultation',
       });
+
+      // ✅ NOUVEAU : Envoyer l'email de notification à l'admin
+      const emailSent = await sendNewAppointmentNotification({
+        clientFirstName: bookingData.firstName,
+        clientLastName: bookingData.lastName,
+        clientEmail: bookingData.email,
+        clientPhone: bookingData.phone,
+        appointmentDate: format(parseISO(selectedSlot.date), 'EEEE dd MMMM yyyy'),
+        appointmentStartTime: selectedSlot.startTime.slice(0, 5),
+        appointmentEndTime: selectedSlot.endTime.slice(0, 5),
+      });
+
+      if (!emailSent) {
+        console.warn('⚠️ Email de notification non envoyé (vérifier la configuration Resend)');
+      }
 
       // Stocker les informations pour la modale de succès
       setConfirmedAppointment({
