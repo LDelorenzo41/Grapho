@@ -122,15 +122,61 @@ export const createSupabaseAdapter = (): DataAdapter => {
       },
       async update(id: string, updates: Partial<User>) {
         if (!supabase) throw new Error('Supabase not configured');
+        
+        // 1. Vérifier l'utilisateur authentifié
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        console.log('🔍 Auth user ID:', authUser?.id);
+        console.log('🔍 Auth user email:', authUser?.email);
+        
         const dbUpdates = userToSnakeCase(updates);
-        const { data, error } = await supabase
+        console.log('🔍 UPDATE payload:', dbUpdates);
+        console.log('🔍 Target user ID:', id);
+        
+        // 2. Tenter l'UPDATE sans .single() pour voir le résultat brut
+        const { data, error, count } = await supabase
           .from('users')
           .update(dbUpdates)
           .eq('id', id)
-          .select()
-          .single();
-        if (error) throw error;
-        return userFromSnakeCase(data);
+          .select();
+        
+        console.log('🔍 UPDATE result:', { data, error, count, rowCount: data?.length });
+        
+        if (error) {
+          console.error('❌ Supabase error:', error);
+          throw error;
+        }
+        
+        if (!data || data.length === 0) {
+          // 3. Diagnostiquer pourquoi aucune ligne n'est retournée
+          console.error('❌ No rows returned. Checking diagnostics...');
+          
+          // Vérifier si l'utilisateur existe
+          const { data: checkUser } = await supabase
+            .from('users')
+            .select('id, email, role')
+            .eq('id', id)
+            .maybeSingle();
+          
+          console.log('🔍 Target user exists:', checkUser);
+          
+          // Vérifier le rôle de l'utilisateur authentifié
+          const { data: authUserData } = await supabase
+            .from('users')
+            .select('id, email, role')
+            .eq('id', authUser?.id)
+            .maybeSingle();
+          
+          console.log('🔍 Auth user data:', authUserData);
+          
+          throw new Error(
+            `Update failed: No rows returned. ` +
+            `Auth user: ${authUserData?.email} (${authUserData?.role}). ` +
+            `Target user: ${checkUser?.email}. ` +
+            `Check RLS policies.`
+          );
+        }
+        
+        return userFromSnakeCase(data[0]);
       },
       async delete(id: string) {
         if (!supabase) throw new Error('Supabase not configured');
