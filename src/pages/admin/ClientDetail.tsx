@@ -24,7 +24,8 @@ import {
   type Session, 
   type Appointment,
   type Document,
-  type Message
+  type Message,
+  type ClientStatus
 } from '../../lib/data';
 import { formatDate } from '../../lib/utils/date';
 import { downloadFile } from '../../lib/storage';
@@ -212,12 +213,35 @@ export function ClientDetail() {
     });
   };
 
+
   const handleDownloadDocument = async (doc: Document) => {
     try {
       await downloadFile(doc.filePath, doc.fileName);
     } catch (error) {
       console.error('Error downloading file:', error);
       alert('Erreur lors du téléchargement');
+    }
+  };
+
+  // ✅ AJOUTER CETTE FONCTION
+  const handleStatusChange = async (newStatus: ClientStatus) => {
+    if (!client || !clientId) return;
+    
+    try {
+      console.log('🔍 Tentative UPDATE avec:', { clientId, newStatus });
+      const result = await dataAdapter.users.update(clientId, { status: newStatus });
+      console.log('✅ UPDATE réussi:', result);
+      setClient({ ...client, status: newStatus });
+      alert(
+        newStatus === 'active' 
+          ? 'Client marqué comme actif' 
+          : 'Client marqué comme terminé'
+      );
+    } catch (error: any) {
+      console.error('❌ Error updating status:', error);
+      console.error('❌ Error message:', error.message);
+      console.error('❌ Error details:', JSON.stringify(error, null, 2));
+      alert(`Erreur: ${error.message || error}`);
     }
   };
 
@@ -289,9 +313,26 @@ export function ClientDetail() {
                 </div>
               </div>
             </div>
-            <div className="text-right font-body text-sm">
-              <p className="opacity-80">Client depuis</p>
-              <p className="font-semibold">{formatDate(client.createdAt)}</p>
+            <div className="flex flex-col items-end gap-3">
+              {/* ✅ NOUVEAU : Sélecteur de statut */}
+              <div className="bg-white/20 rounded-lg p-3 backdrop-blur-sm">
+                <label className="block font-body text-xs opacity-80 mb-2">
+                  Statut de la rééducation
+                </label>
+                <select
+                  value={client.status || 'active'}
+                  onChange={(e) => handleStatusChange(e.target.value as ClientStatus)}
+                  className="px-4 py-2 rounded-lg font-body font-medium bg-white text-gray-900 border-0 focus:ring-2 focus:ring-white/50 cursor-pointer"
+                >
+                  <option value="active">✓ Actif</option>
+                  <option value="completed">✗ Terminée</option>
+                </select>
+              </div>
+              
+              <div className="text-right font-body text-sm">
+                <p className="opacity-80">Client depuis</p>
+                <p className="font-semibold">{formatDate(client.createdAt)}</p>
+              </div>
             </div>
           </div>
         </div>

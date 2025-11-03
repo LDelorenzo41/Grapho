@@ -16,6 +16,7 @@ export function userToSnakeCase(user: any): any {
     ...(dateOfBirth !== undefined && { date_of_birth: dateOfBirth }),
     ...(createdAt !== undefined && { created_at: createdAt }),
     ...(updatedAt !== undefined && { updated_at: updatedAt }),
+    // ✅ NOUVEAU : Le champ status est déjà en snake_case, on le garde tel quel
   };
 }
 
@@ -29,6 +30,7 @@ export function userFromSnakeCase(data: any): User {
     lastName: data.last_name,
     phone: data.phone,
     dateOfBirth: data.date_of_birth,
+    status: data.status, // ✅ NOUVEAU : Récupérer le statut du client
     createdAt: data.created_at,
     updatedAt: data.updated_at,
   };

@@ -47,7 +47,8 @@ export function AdminDocuments() {
         dataAdapter.users.getAll(),
       ]);
       setDocuments(docs);
-      setClients(allUsers.filter(u => u.role === 'client'));
+      // ✅ MODIFIÉ : Filtrer uniquement les clients avec statut 'active'
+      setClients(allUsers.filter(u => u.role === 'client' && (u.status === 'active' || !u.status)));
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
