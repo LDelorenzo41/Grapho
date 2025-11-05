@@ -127,8 +127,7 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
         clientEmail: bookingData.email,
         clientPhone: bookingData.phone,
         appointmentDate: format(parseISO(selectedSlot.date), 'EEEE dd MMMM yyyy'),
-        appointmentStartTime: selectedSlot.startTime.slice(0, 5),
-        appointmentEndTime: selectedSlot.endTime.slice(0, 5),
+        appointmentTime: selectedSlot.startTime.slice(0, 5),  // ✅ CORRIGÉ
       });
 
       if (!emailSent) {
