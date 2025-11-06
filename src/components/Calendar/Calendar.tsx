@@ -45,6 +45,22 @@ export function Calendar({ appointments, clients = [], onDateClick, onAppointmen
     return client ? `${client.firstName} ${client.lastName} - S${sessionNumber}` : 'Client inconnu';
   };
 
+  // ✅ NOUVELLE FONCTION : Retourne les classes CSS pour les bordures selon le statut
+  const getAppointmentBorderStyles = (status: string) => {
+    switch (status) {
+      case 'scheduled':
+        return 'border-l-4 border-blue-500'; // Bleu pour "Prévu"
+      case 'confirmed':
+        return 'border-l-4 border-green-700'; // Vert foncé pour "Confirmé"
+      case 'cancelled':
+        return 'border-l-4 border-red-500'; // Rouge pour "Annulé"
+      case 'completed':
+        return 'border-l-4 border-gray-400'; // Gris pour "Terminé" (bonus)
+      default:
+        return 'border-l-4 border-gray-300';
+    }
+  };
+
   const goToPrevious = () => {
     const newDate = new Date(currentDate);
     if (viewMode === 'month') newDate.setMonth(currentDate.getMonth() - 1);
@@ -149,7 +165,7 @@ export function Calendar({ appointments, clients = [], onDateClick, onAppointmen
                               e.stopPropagation();
                               onAppointmentClick?.(apt);
                             }}
-                            className="text-xs bg-primary/10 text-primary px-1 py-0.5 rounded truncate cursor-pointer hover:bg-primary/20"
+                            className={`text-xs bg-primary/10 text-primary px-2 py-1 rounded cursor-pointer hover:bg-primary/20 ${getAppointmentBorderStyles(apt.status)}`}
                             title={getAppointmentLabel(apt)}
                           >
                             {new Date(apt.startTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
@@ -215,11 +231,11 @@ export function Calendar({ appointments, clients = [], onDateClick, onAppointmen
                     <div key={hour} className="h-16 border border-gray-200 rounded p-1 bg-white">
                       {hourAppointments.map(apt => (
                         <div
-                        key={apt.id}
-                        onClick={() => onAppointmentClick?.(apt)}
-                        className="text-xs bg-primary/20 text-primary p-1 rounded mb-1 truncate cursor-pointer hover:bg-primary/30"
-                        title={getAppointmentLabel(apt)}
-                      >
+                          key={apt.id}
+                          onClick={() => onAppointmentClick?.(apt)}
+                          className={`text-xs bg-primary/20 text-primary p-1 rounded mb-1 truncate cursor-pointer hover:bg-primary/30 ${getAppointmentBorderStyles(apt.status)}`}
+                          title={getAppointmentLabel(apt)}
+                        >
                           {new Date(apt.startTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
                           {clients.length > 0 && (
                             <div className="truncate font-semibold">{getAppointmentLabel(apt)}</div>
@@ -264,7 +280,7 @@ export function Calendar({ appointments, clients = [], onDateClick, onAppointmen
                         <div
                           key={apt.id}
                           onClick={() => onAppointmentClick?.(apt)}
-                          className="bg-primary/10 text-primary p-3 rounded-lg cursor-pointer hover:bg-primary/20"
+                          className={`bg-primary/10 text-primary p-3 rounded-lg cursor-pointer hover:bg-primary/20 ${getAppointmentBorderStyles(apt.status)}`}
                         >
                           <div className="font-body font-semibold text-sm mb-1">
                             {new Date(apt.startTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
@@ -328,3 +344,4 @@ export function Calendar({ appointments, clients = [], onDateClick, onAppointmen
     </div>
   );
 }
+

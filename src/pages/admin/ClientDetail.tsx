@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, 
   Calendar, 
@@ -16,7 +16,9 @@ import {
   Clock,
   XCircle,
   Edit2,
-  Save
+  Save,
+  Trash2,
+  AlertTriangle
 } from 'lucide-react';
 import { 
   dataAdapter, 
@@ -32,6 +34,7 @@ import { downloadFile } from '../../lib/storage';
 
 export function ClientDetail() {
   const { clientId } = useParams<{ clientId: string }>();
+  const navigate = useNavigate();
   const [client, setClient] = useState<UserType | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -50,6 +53,9 @@ export function ClientDetail() {
     progress: '',
     objectives: '',
   });
+
+  // ✅ NOUVEAU : État pour la modale de suppression du client
+  const [showDeleteClientModal, setShowDeleteClientModal] = useState(false);
 
   useEffect(() => {
     if (!clientId) return;
@@ -213,7 +219,6 @@ export function ClientDetail() {
     });
   };
 
-
   const handleDownloadDocument = async (doc: Document) => {
     try {
       await downloadFile(doc.filePath, doc.fileName);
@@ -223,7 +228,6 @@ export function ClientDetail() {
     }
   };
 
-  // ✅ AJOUTER CETTE FONCTION
   const handleStatusChange = async (newStatus: ClientStatus) => {
     if (!client || !clientId) return;
     
@@ -242,6 +246,29 @@ export function ClientDetail() {
       console.error('❌ Error message:', error.message);
       console.error('❌ Error details:', JSON.stringify(error, null, 2));
       alert(`Erreur: ${error.message || error}`);
+    }
+  };
+
+  // ✅ NOUVELLE FONCTION : Suppression du client
+  const handleDeleteClient = async () => {
+    if (!clientId || !client) return;
+
+    try {
+      // La suppression en cascade est gérée par la base de données (ON DELETE CASCADE)
+      // Donc supprimer le client supprimera automatiquement :
+      // - appointments
+      // - documents
+      // - messages
+      // - sessions
+      // - prescriptions
+      // - consents
+      await dataAdapter.users.delete(clientId);
+      
+      alert(`Le client ${client.firstName} ${client.lastName} et toutes ses données ont été supprimés avec succès.`);
+      navigate('/admin/clients');
+    } catch (error) {
+      console.error('Error deleting client:', error);
+      alert('Erreur lors de la suppression du client');
     }
   };
 
@@ -265,7 +292,7 @@ export function ClientDetail() {
     new Date(apt.startTime) <= new Date() && apt.status !== 'cancelled'
   );
   const upcomingAppointments = appointments.filter(apt => 
-    apt.status === 'scheduled' && new Date(apt.startTime) > new Date()
+    (apt.status === 'scheduled' || apt.status === 'confirmed') && new Date(apt.startTime) > new Date()
   );
   const cancelledAppointments = appointments.filter(apt => apt.status === 'cancelled');
 
@@ -274,13 +301,24 @@ export function ClientDetail() {
   return (
     <div className="py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <Link
-          to="/admin/clients"
-          className="flex items-center space-x-2 text-primary hover:underline mb-6 font-body"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Retour à la liste des clients</span>
-        </Link>
+        <div className="flex items-center justify-between mb-6">
+          <Link
+            to="/admin/clients"
+            className="flex items-center space-x-2 text-primary hover:underline font-body"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Retour à la liste des clients</span>
+          </Link>
+
+          {/* ✅ NOUVEAU : Bouton de suppression du client */}
+          <button
+            onClick={() => setShowDeleteClientModal(true)}
+            className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-body font-semibold shadow-md hover:shadow-lg"
+          >
+            <Trash2 className="w-4 h-4" />
+            <span>Supprimer le client</span>
+          </button>
+        </div>
 
         {/* En-tête client */}
         <div className="bg-gradient-to-r from-primary to-secondary rounded-lg shadow-lg p-6 mb-6 text-white">
@@ -314,7 +352,7 @@ export function ClientDetail() {
               </div>
             </div>
             <div className="flex flex-col items-end gap-3">
-              {/* ✅ NOUVEAU : Sélecteur de statut */}
+              {/* Sélecteur de statut */}
               <div className="bg-white/20 rounded-lg p-3 backdrop-blur-sm">
                 <label className="block font-body text-xs opacity-80 mb-2">
                   Statut de la rééducation
@@ -631,6 +669,144 @@ export function ClientDetail() {
             </div>
           )}
         </div>
+
+        {/* ✅ NOUVELLE MODALE : Confirmation de suppression du client */}
+        {showDeleteClientModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70] p-4">
+            <div className="bg-white rounded-lg p-8 max-w-2xl w-full shadow-2xl max-h-[90vh] overflow-y-auto">
+              {/* Icône d'alerte */}
+              <div className="flex justify-center mb-6">
+                <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center">
+                  <AlertTriangle className="w-12 h-12 text-red-600" />
+                </div>
+              </div>
+
+              {/* Titre */}
+              <h3 className="font-title text-2xl font-bold text-text text-center mb-2">
+                Supprimer définitivement ce client ?
+              </h3>
+
+              {/* Message d'avertissement */}
+              <p className="font-body text-center text-gray-600 mb-6">
+                ⚠️ <strong>ATTENTION :</strong> Cette action est <strong className="text-red-600">irréversible</strong> et entraînera la suppression de <strong>toutes les données</strong> associées à ce client.
+              </p>
+
+              {/* Détails du client */}
+              <div className="bg-red-50 border-l-4 border-red-500 rounded-r-lg p-4 mb-6">
+                <p className="font-body text-sm font-bold text-gray-900 mb-2">
+                  Client : {client.firstName} {client.lastName}
+                </p>
+                <p className="font-body text-sm text-gray-700 mb-1">
+                  Email : {client.email}
+                </p>
+                {client.phone && (
+                  <p className="font-body text-sm text-gray-700">
+                    Téléphone : {client.phone}
+                  </p>
+                )}
+              </div>
+
+              {/* Liste des éléments qui seront supprimés */}
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-5 mb-6">
+                <h4 className="font-body font-bold text-text mb-4 flex items-center space-x-2">
+                  <Trash2 className="w-5 h-5 text-red-600" />
+                  <span>Les éléments suivants seront définitivement supprimés :</span>
+                </h4>
+                <ul className="space-y-3">
+                  <li className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Calendar className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-body text-sm font-semibold text-text">
+                        {appointments.length} Rendez-vous
+                      </p>
+                      <p className="font-body text-xs text-gray-600">
+                        (Passés, à venir et annulés)
+                      </p>
+                    </div>
+                  </li>
+                  <li className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <ClipboardList className="w-4 h-4 text-purple-600" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-body text-sm font-semibold text-text">
+                        {sessions.length} Séance(s) / Bilan(s)
+                      </p>
+                      <p className="font-body text-xs text-gray-600">
+                        Toutes les notes de consultation
+                      </p>
+                    </div>
+                  </li>
+                  <li className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <FileText className="w-4 h-4 text-green-600" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-body text-sm font-semibold text-text">
+                        {documents.length} Document(s)
+                      </p>
+                      <p className="font-body text-xs text-gray-600">
+                        Fichiers et pièces jointes
+                      </p>
+                    </div>
+                  </li>
+                  <li className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-yellow-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Mail className="w-4 h-4 text-yellow-600" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-body text-sm font-semibold text-text">
+                        {messages.length} Message(s)
+                      </p>
+                      <p className="font-body text-xs text-gray-600">
+                        Conversations envoyées et reçues
+                      </p>
+                    </div>
+                  </li>
+                  <li className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <User className="w-4 h-4 text-red-600" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-body text-sm font-semibold text-text">
+                        Compte utilisateur
+                      </p>
+                      <p className="font-body text-xs text-gray-600">
+                        Identifiants et informations personnelles
+                      </p>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Avertissement final */}
+              <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-4 mb-6">
+                <p className="font-body text-sm text-yellow-800">
+                  <strong>⚠️ Cette suppression est définitive.</strong> Aucune restauration ne sera possible. Assurez-vous d'avoir sauvegardé toutes les données importantes avant de continuer.
+                </p>
+              </div>
+
+              {/* Boutons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDeleteClientModal(false)}
+                  className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg font-body font-semibold hover:bg-gray-50 transition"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleDeleteClient}
+                  className="flex-1 px-6 py-3 bg-red-600 text-white rounded-lg font-body font-semibold hover:bg-red-700 transition shadow-md hover:shadow-lg flex items-center justify-center space-x-2"
+                >
+                  <Trash2 className="w-5 h-5" />
+                  <span>Supprimer définitivement</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Modale d'ajout de séance */}
         {showAddSessionModal && (
