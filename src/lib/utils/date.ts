@@ -57,15 +57,17 @@ export const format = (date: Date, formatStr: string): string => {
   const monthNamesShort = ['janv', 'févr', 'mars', 'avr', 'mai', 'juin', 'juil', 'août', 'sept', 'oct', 'nov', 'déc'];
   const dayNames = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
 
+  // ✅ CORRECTION : Ordre du plus long au plus court pour éviter les remplacements partiels
   return formatStr
-    .replace('yyyy', year.toString())
-    .replace('MM', (month + 1).toString().padStart(2, '0'))
-    .replace('MMMM', monthNames[month])
-    .replace('MMM', monthNamesShort[month])
-    .replace('dd', day.toString().padStart(2, '0'))
-    .replace('EEEE', dayNames[dayOfWeek]);
+    .replace('EEEE', dayNames[dayOfWeek])                    // 4 lettres (jour complet)
+    .replace('MMMM', monthNames[month])                       // 4 lettres (mois complet)
+    .replace('MMM', monthNamesShort[month])                   // 3 lettres (mois court)
+    .replace('yyyy', year.toString())                         // 4 chiffres (année)
+    .replace('dd', day.toString().padStart(2, '0'))          // 2 chiffres (jour)
+    .replace('MM', (month + 1).toString().padStart(2, '0')); // 2 chiffres (mois numérique)
 };
 
 export const parseISO = (dateStr: string): Date => {
   return new Date(dateStr);
 };
+
