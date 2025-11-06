@@ -1,5 +1,3 @@
-// supabase/functions/send-email/index.ts
-
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 
 const corsHeaders = {
@@ -18,28 +16,32 @@ interface EmailRequest {
 }
 
 serve(async (req: Request) => {
-  // Handle CORS preflight requests
+  console.log('🚀 Requête reçue')
+  
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    // Récupérer les variables d'environnement
+    // ✅ PRODUCTION : Uniquement les secrets Supabase (pas de fallback)
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
     const ADMIN_EMAIL = Deno.env.get('ADMIN_EMAIL')
     const APP_NAME = Deno.env.get('APP_NAME') || 'Grapho'
 
+    // ⚠️ Vérification stricte : si les secrets manquent, on refuse d'envoyer
     if (!RESEND_API_KEY || !ADMIN_EMAIL) {
-      throw new Error('Configuration manquante: RESEND_API_KEY ou ADMIN_EMAIL')
+      console.error('❌ Secrets manquants')
+      throw new Error('Configuration Supabase incorrecte. Vérifiez les secrets RESEND_API_KEY et ADMIN_EMAIL.')
     }
 
-    // Parser les données de la requête
-    const emailData: EmailRequest = await req.json()
+    console.log('✅ Secrets chargés')
 
-    // Générer le HTML de l'email
+    const emailData: EmailRequest = await req.json()
+    
+    console.log('📨 Envoi email pour:', emailData.clientFirstName, emailData.clientLastName)
+
     const htmlContent = generateEmailHTML(emailData, APP_NAME)
 
-    // Envoyer l'email via Resend
     const resendResponse = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -58,10 +60,10 @@ serve(async (req: Request) => {
 
     if (!resendResponse.ok) {
       console.error('❌ Erreur Resend:', resendData)
-      throw new Error(`Resend API error: ${JSON.stringify(resendData)}`)
+      throw new Error(`Resend error: ${JSON.stringify(resendData)}`)
     }
 
-    console.log('✅ Email envoyé avec succès:', resendData)
+    console.log('✅ Email envoyé')
 
     return new Response(
       JSON.stringify({ success: true, data: resendData }),
@@ -73,7 +75,7 @@ serve(async (req: Request) => {
 
   } catch (err: unknown) {
     const error = err as Error
-    console.error('❌ Erreur lors de l\'envoi de l\'email:', error)
+    console.error('❌ Erreur:', error.message)
     
     return new Response(
       JSON.stringify({ success: false, error: error.message }),
@@ -106,8 +108,6 @@ function generateEmailHTML(data: EmailRequest, appName: string): string {
           <tr>
             <td align="center">
               <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                
-                <!-- Header -->
                 <tr>
                   <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 32px; border-radius: 8px 8px 0 0; text-align: center;">
                     <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 600;">
@@ -115,16 +115,11 @@ function generateEmailHTML(data: EmailRequest, appName: string): string {
                     </h1>
                   </td>
                 </tr>
-
-                <!-- Content -->
                 <tr>
                   <td style="padding: 32px;">
-                    
                     <p style="margin: 0 0 24px; color: #374151; font-size: 16px; line-height: 1.6;">
                       Un nouveau client vient de prendre un premier rendez-vous via la page contact.
                     </p>
-
-                    <!-- Client Info Box -->
                     <div style="background-color: #f3f4f6; border-left: 4px solid #667eea; padding: 20px; margin: 24px 0; border-radius: 4px;">
                       <h2 style="margin: 0 0 16px; color: #1f2937; font-size: 18px; font-weight: 600;">
                         👤 Informations du client
@@ -133,8 +128,6 @@ function generateEmailHTML(data: EmailRequest, appName: string): string {
                       <p style="margin: 8px 0; color: #6b7280;"><strong>Email :</strong> ${data.clientEmail}</p>
                       ${phoneSection}
                     </div>
-
-                    <!-- Appointment Info Box -->
                     <div style="background-color: #ecfdf5; border-left: 4px solid #10b981; padding: 20px; margin: 24px 0; border-radius: 4px;">
                       <h2 style="margin: 0 0 16px; color: #1f2937; font-size: 18px; font-weight: 600;">
                         📅 Détails du rendez-vous
@@ -143,18 +136,8 @@ function generateEmailHTML(data: EmailRequest, appName: string): string {
                       <p style="margin: 8px 0; color: #6b7280;"><strong>Heure :</strong> ${data.appointmentTime}</p>
                       ${motifSection}
                     </div>
-
-                    <!-- Call to Action -->
-                    <div style="text-align: center; margin: 32px 0;">
-                      <p style="margin: 0 0 16px; color: #6b7280; font-size: 14px;">
-                        Connectez-vous à votre tableau de bord pour gérer ce rendez-vous
-                      </p>
-                    </div>
-
                   </td>
                 </tr>
-
-                <!-- Footer -->
                 <tr>
                   <td style="background-color: #f9fafb; padding: 24px 32px; border-radius: 0 0 8px 8px; text-align: center; border-top: 1px solid #e5e7eb;">
                     <p style="margin: 0; color: #9ca3af; font-size: 14px;">
@@ -162,7 +145,6 @@ function generateEmailHTML(data: EmailRequest, appName: string): string {
                     </p>
                   </td>
                 </tr>
-
               </table>
             </td>
           </tr>
