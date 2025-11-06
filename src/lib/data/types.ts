@@ -1,6 +1,6 @@
 export type UserRole = 'admin' | 'client';
 
-export type AppointmentStatus = 'scheduled' | 'completed' | 'cancelled';
+export type AppointmentStatus = 'scheduled' | 'confirmed' | 'completed' | 'cancelled';
 
 // ✅ NOUVEAU : Type pour le statut du client
 export type ClientStatus = 'active' | 'completed';

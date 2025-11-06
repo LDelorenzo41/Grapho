@@ -43,6 +43,22 @@ export function AdminDashboard() {
   const [currentPage, setCurrentPage] = useState(1);
   const appointmentsPerPage = 10;
 
+  // ✅ NOUVELLE FONCTION : Retourne les classes CSS pour les bordures selon le statut
+  const getAppointmentBorderStyles = (status: string) => {
+    switch (status) {
+      case 'scheduled':
+        return 'border-l-4 border-blue-500'; // Bleu pour "Prévu"
+      case 'confirmed':
+        return 'border-l-4 border-green-700'; // Vert foncé pour "Confirmé"
+      case 'cancelled':
+        return 'border-l-4 border-red-500'; // Rouge pour "Annulé"
+      case 'completed':
+        return 'border-l-4 border-gray-400'; // Gris pour "Terminé"
+      default:
+        return 'border-l-4 border-gray-300';
+    }
+  };
+
   useEffect(() => {
     loadData();
   }, []);
@@ -257,10 +273,10 @@ export function AdminDashboard() {
     setShowEditModal(true);
   };
 
-  // ✅ AMÉLIORATION : Filtrer et trier tous les prochains rendez-vous
+  // ✅ CORRECTION : Filtrer les prochains RDV avec statut 'scheduled' OU 'confirmed'
   const upcomingAppointments = appointments
-    .filter(apt => apt.status === 'scheduled' && new Date(apt.startTime) > new Date())
-    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()); // Tri par date croissante
+    .filter(apt => (apt.status === 'scheduled' || apt.status === 'confirmed') && new Date(apt.startTime) > new Date())
+    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 
   // Pagination
   const totalPages = Math.ceil(upcomingAppointments.length / appointmentsPerPage);
@@ -367,29 +383,43 @@ export function AdminDashboard() {
           />
         </div>
 
-        {/* ✅ NOUVELLE SECTION : Prochains rendez-vous avec pagination et 2 colonnes */}
+        {/* ✅ SECTION MODIFIÉE : Prochains rendez-vous avec bordures colorées */}
         <div className="bg-white rounded-lg shadow-sm border p-6">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="font-title text-2xl font-bold text-text">
-              Prochains rendez-vous
+            <div className="flex items-center gap-4">
+              <h2 className="font-title text-2xl font-bold text-text">
+                Prochains rendez-vous
+              </h2>
               {upcomingAppointments.length > 0 && (
-                <span className="ml-3 text-lg font-normal text-gray-500">
-                  ({upcomingAppointments.length} au total)
-                </span>
+                <div className="flex items-center gap-3">
+                  <span className="text-lg font-normal text-gray-500">
+                    ({upcomingAppointments.length} au total)
+                  </span>
+                  {/* ✅ NOUVEAU : Badge indiquant les RDV à confirmer */}
+                  {upcomingAppointments.filter(apt => apt.status === 'scheduled').length > 0 && (
+                    <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-body font-semibold flex items-center gap-1">
+                      <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
+                      {upcomingAppointments.filter(apt => apt.status === 'scheduled').length} à confirmer
+                    </span>
+                  )}
+                </div>
               )}
-            </h2>
+            </div>
           </div>
 
           {upcomingAppointments.length === 0 ? (
             <p className="font-body text-gray-600 text-center py-8">Aucun rendez-vous à venir</p>
           ) : (
             <>
-              {/* Grille 2 colonnes responsive */}
+              {/* Grille 2 colonnes responsive avec bordures colorées */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
                 {currentAppointments.map(apt => {
                   const client = clients.find(c => c.id === apt.clientId);
                   return (
-                    <div key={apt.id} className="border-l-4 border-primary pl-4 py-3 bg-gray-50 rounded-r-lg flex items-start justify-between group hover:bg-gray-100 transition">
+                    <div 
+                      key={apt.id} 
+                      className={`${getAppointmentBorderStyles(apt.status)} pl-4 py-3 bg-gray-50 rounded-r-lg flex items-start justify-between group hover:bg-gray-100 transition`}
+                    >
                       <div className="flex-1 min-w-0">
                         <p className="font-body font-semibold text-text truncate">
                           {client?.firstName} {client?.lastName}
@@ -653,13 +683,14 @@ export function AdminDashboard() {
                       if (selectedAppointment) {
                         setSelectedAppointment({
                           ...selectedAppointment,
-                          status: e.target.value as 'scheduled' | 'completed' | 'cancelled'
+                          status: e.target.value as 'scheduled' | 'confirmed' | 'completed' | 'cancelled'
                         });
                       }
                     }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent font-body"
                   >
                     <option value="scheduled">Prévu</option>
+                    <option value="confirmed">Confirmé</option>
                     <option value="completed">Terminé</option>
                     <option value="cancelled">Annulé</option>
                   </select>
