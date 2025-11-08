@@ -27,6 +27,7 @@ import { ClientDetail } from './pages/admin/ClientDetail';
 import { AdminMessages } from './pages/admin/AdminMessages';
 import { ClientMessages } from './pages/client/ClientMessages';
 import { ResetPassword } from './pages/ResetPassword';
+import { ForcePasswordChangePage } from './pages/ForcePasswordChangePage';
 
 function App() {
   return (
@@ -53,6 +54,7 @@ function App() {
                 </ProtectedRoute>
               }
             />
+            <Route path="/force-password-change" element={<ForcePasswordChangePage />} />
             <Route
               path="/client/rendez-vous"
               element={
