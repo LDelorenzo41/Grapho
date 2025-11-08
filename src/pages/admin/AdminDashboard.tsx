@@ -259,30 +259,52 @@ export function AdminDashboard() {
   };
 
   const updateAppointment = async () => {
-    if (!selectedAppointment) return;
+  if (!selectedAppointment) return;
 
-    try {
-      const startDateTime = new Date(`${editAppointment.date}T${editAppointment.startTime}`);
-      const endDateTime = new Date(startDateTime.getTime() + parseInt(editAppointment.duration) * 60000);
+  try {
+    const startDateTime = new Date(`${editAppointment.date}T${editAppointment.startTime}`);
+    const endDateTime = new Date(startDateTime.getTime() + parseInt(editAppointment.duration) * 60000);
 
-      await dataAdapter.appointments.update(selectedAppointment.id, {
-        clientId: editAppointment.clientId,
-        startTime: startDateTime.toISOString(),
-        endTime: endDateTime.toISOString(),
-        status: selectedAppointment.status,
-        notes: editAppointment.notes,
-      });
+    // ✅ NOUVEAU : Stocker le statut original pour détecter les changements
+    const originalStatus = appointments.find(apt => apt.id === selectedAppointment.id)?.status;
+    const newStatus = selectedAppointment.status;
 
-      setShowEditModal(false);
-      setShowConflictModal(false);
-      setSelectedAppointment(null);
-      await loadData();
-      alert('Rendez-vous modifié avec succès !');
-    } catch (error) {
-      console.error('Error updating appointment:', error);
-      alert('Erreur lors de la modification du rendez-vous');
+    await dataAdapter.appointments.update(selectedAppointment.id, {
+      clientId: editAppointment.clientId,
+      startTime: startDateTime.toISOString(),
+      endTime: endDateTime.toISOString(),
+      status: selectedAppointment.status,
+      notes: editAppointment.notes,
+    });
+
+    // ✅ NOUVEAU : Si le statut a changé vers "confirmed" ou "cancelled", ouvrir le client mail
+    if (originalStatus !== newStatus) {
+      const client = clients.find(c => c.id === editAppointment.clientId);
+      if (client) {
+        const updatedAppointment = {
+          ...selectedAppointment,
+          startTime: startDateTime.toISOString(),
+          endTime: endDateTime.toISOString(),
+        };
+
+        if (newStatus === 'confirmed') {
+          openEmailClient(client, updatedAppointment, 'confirmation');
+        } else if (newStatus === 'cancelled') {
+          openEmailClient(client, updatedAppointment, 'cancellation');
+        }
+      }
     }
-  };
+
+    setShowEditModal(false);
+    setShowConflictModal(false);
+    setSelectedAppointment(null);
+    await loadData();
+    alert('Rendez-vous modifié avec succès !');
+  } catch (error) {
+    console.error('Error updating appointment:', error);
+    alert('Erreur lors de la modification du rendez-vous');
+  }
+};
 
   const handleConfirmWithConflict = async () => {
     if (pendingAction === 'add') {
@@ -321,7 +343,44 @@ export function AdminDashboard() {
       alert('Erreur lors de la suppression du rendez-vous');
     }
   };
+// ✅ NOUVEAU : Fonction pour ouvrir le client mail avec un message pré-rempli
+const openEmailClient = (client: User, appointment: Appointment, emailType: 'confirmation' | 'cancellation') => {
+  const startDate = new Date(appointment.startTime);
+  const formattedDate = startDate.toLocaleDateString('fr-FR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  });
+  const formattedTime = startDate.toLocaleTimeString('fr-FR', {
+    hour: '2-digit',
+    minute: '2-digit'
+  });
 
+  let subject = '';
+  let body = '';
+
+  if (emailType === 'confirmation') {
+    subject = `Confirmation de votre rendez-vous - ${formattedDate}`;
+    body = `Bonjour ${client.firstName},\n\n` +
+      `Je vous confirme votre rendez-vous de graphothérapie :\n\n` +
+      `📅 Date : ${formattedDate}\n` +
+      `🕐 Heure : ${formattedTime}\n\n` +
+      `N'hésitez pas à me contacter si vous avez des questions.\n\n` +
+      `Cordialement,\n` +
+      `Votre graphothérapeute`;
+  } else {
+    subject = `Annulation de votre rendez-vous - ${formattedDate}`;
+    body = `Bonjour ${client.firstName},\n\n` +
+      `Je vous informe que votre rendez-vous de graphothérapie prévu le ${formattedDate} à ${formattedTime} est annulé.\n\n` +
+      `N'hésitez pas à me contacter pour convenir d'un nouveau créneau.\n\n` +
+      `Cordialement,\n` +
+      `Votre graphothérapeute`;
+  }
+
+  const mailtoLink = `mailto:${client.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  window.open(mailtoLink, '_blank');
+};
   const openEditModal = (apt: Appointment) => {
     setSelectedAppointment(apt);
     const startDate = new Date(apt.startTime);
