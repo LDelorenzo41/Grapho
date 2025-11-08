@@ -420,7 +420,7 @@ export function AdminSettings() {
             )}
           </div>
 
-          {/* Section Templates emails */}
+          {/* ⚠️ SECTION COMMENTÉE : Templates emails - Non utilisés dans l'application
           <div className="bg-white rounded-lg shadow-sm border p-6">
             <h2 className="font-title text-2xl font-bold text-text mb-4">Modèles d'emails</h2>
             <div className="space-y-4">
@@ -463,6 +463,7 @@ export function AdminSettings() {
             <Save className="w-4 h-4" />
             <span>{saving ? 'Enregistrement...' : 'Enregistrer les paramètres emails'}</span>
           </button>
+          */}
         </div>
 
         {/* ✅ NOUVELLE MODALE : Confirmation de suppression */}
@@ -521,3 +522,4 @@ export function AdminSettings() {
     </div>
   );
 }
+
