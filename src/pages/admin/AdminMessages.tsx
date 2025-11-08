@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { MessageSquare, Plus, X, Edit2, Trash2, Send, Users, User } from 'lucide-react';
+import { MessageSquare, Plus, X, Edit2, Trash2, Send, Users, User, CheckSquare, Square } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { dataAdapter, type Message, type User as UserType } from '../../lib/data';
 
@@ -11,11 +11,15 @@ export function AdminMessages() {
   const [showComposeModal, setShowComposeModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
-  
+
   // ✅ NOUVEAU : État pour la modale de confirmation de suppression
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [messageToDelete, setMessageToDelete] = useState<Message | null>(null);
-  
+
+  // ✅ NOUVEAU : États pour la sélection multiple et suppression en lot
+  const [selectedMessages, setSelectedMessages] = useState<string[]>([]);
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+
   const [composeForm, setComposeForm] = useState({
     recipientId: '',
     selectAll: false,
@@ -130,6 +134,46 @@ export function AdminMessages() {
     }
   };
 
+  // ✅ NOUVEAU : Gérer la sélection/désélection d'un message
+  const toggleMessageSelection = (messageId: string) => {
+    setSelectedMessages(prev =>
+      prev.includes(messageId)
+        ? prev.filter(id => id !== messageId)
+        : [...prev, messageId]
+    );
+  };
+
+  // ✅ NOUVEAU : Sélectionner/désélectionner tous les messages
+  const toggleSelectAll = () => {
+    if (selectedMessages.length === messages.length) {
+      setSelectedMessages([]);
+    } else {
+      setSelectedMessages(messages.map(m => m.id));
+    }
+  };
+
+  // ✅ NOUVEAU : Ouvrir la modale de suppression en lot
+  const handleBulkDelete = () => {
+    if (selectedMessages.length === 0) return;
+    setShowBulkDeleteModal(true);
+  };
+
+  // ✅ NOUVEAU : Confirmer la suppression en lot
+  const confirmBulkDelete = async () => {
+    try {
+      await Promise.all(
+        selectedMessages.map(id => dataAdapter.messages.delete(id))
+      );
+      setShowBulkDeleteModal(false);
+      setSelectedMessages([]);
+      await loadData();
+      alert(`${selectedMessages.length} message(s) supprimé(s) avec succès !`);
+    } catch (error) {
+      console.error('Error deleting messages:', error);
+      alert('Erreur lors de la suppression des messages');
+    }
+  };
+
   const openEditModal = (msg: Message) => {
     setSelectedMessage(msg);
     setEditForm({
@@ -161,7 +205,40 @@ export function AdminMessages() {
         </div>
 
         <div className="bg-white rounded-lg shadow-sm border p-6">
-          <h2 className="font-title text-2xl font-bold text-text mb-6">Messages envoyés</h2>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="font-title text-2xl font-bold text-text">Messages envoyés</h2>
+            {messages.length > 0 && (
+              <div className="flex items-center gap-4">
+                {/* ✅ NOUVEAU : Bouton "Tout sélectionner" */}
+                <button
+                  onClick={toggleSelectAll}
+                  className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition font-body text-sm"
+                >
+                  {selectedMessages.length === messages.length ? (
+                    <CheckSquare className="w-5 h-5 text-primary" />
+                  ) : (
+                    <Square className="w-5 h-5 text-gray-400" />
+                  )}
+                  <span>
+                    {selectedMessages.length === messages.length
+                      ? 'Tout désélectionner'
+                      : 'Tout sélectionner'}
+                  </span>
+                </button>
+
+                {/* ✅ NOUVEAU : Bouton de suppression en lot */}
+                {selectedMessages.length > 0 && (
+                  <button
+                    onClick={handleBulkDelete}
+                    className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-body font-semibold shadow-md"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                    <span>Supprimer ({selectedMessages.length})</span>
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
           {messages.length === 0 ? (
             <div className="text-center py-12">
               <MessageSquare className="w-16 h-16 text-gray-300 mx-auto mb-4" />
@@ -174,14 +251,29 @@ export function AdminMessages() {
                 .sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime())
                 .map(msg => {
                   const recipient = clients.find(c => c.id === msg.recipientId);
+                  const isSelected = selectedMessages.includes(msg.id);
                   return (
                     <div
                       key={msg.id}
-                      className="border border-gray-200 rounded-lg p-5 hover:shadow-md transition group"
+                      className={`border-2 rounded-lg p-5 hover:shadow-md transition group ${
+                        isSelected ? 'border-primary bg-primary/5' : 'border-gray-200'
+                      }`}
                     >
                       <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-3 mb-2">
+                        {/* ✅ NOUVEAU : Checkbox de sélection */}
+                        <div className="flex items-start space-x-3 flex-1">
+                          <button
+                            onClick={() => toggleMessageSelection(msg.id)}
+                            className="mt-1 p-1 hover:bg-gray-100 rounded transition"
+                          >
+                            {isSelected ? (
+                              <CheckSquare className="w-5 h-5 text-primary" />
+                            ) : (
+                              <Square className="w-5 h-5 text-gray-400" />
+                            )}
+                          </button>
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-3 mb-2">
                             <User className="w-4 h-4 text-gray-400" />
                             <span className="font-body text-sm text-gray-600">
                               {recipient ? `${recipient.firstName} ${recipient.lastName}` : 'Client inconnu'}
@@ -206,9 +298,10 @@ export function AdminMessages() {
                                 Non lu
                               </span>
                             )}
+                            </div>
+                            <h3 className="font-body text-lg font-semibold text-text mb-2">{msg.subject}</h3>
+                            <p className="font-body text-gray-700 whitespace-pre-wrap">{msg.content}</p>
                           </div>
-                          <h3 className="font-body text-lg font-semibold text-text mb-2">{msg.subject}</h3>
-                          <p className="font-body text-gray-700 whitespace-pre-wrap">{msg.content}</p>
                         </div>
                         <div className="flex items-center space-x-2 ml-4 opacity-0 group-hover:opacity-100 transition">
                           <button
@@ -284,6 +377,69 @@ export function AdminMessages() {
                   className="flex-1 px-6 py-3 bg-red-600 text-white rounded-lg font-body font-semibold hover:bg-red-700 transition shadow-md hover:shadow-lg"
                 >
                   Supprimer
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ✅ NOUVELLE MODALE : Confirmation de suppression en lot */}
+        {showBulkDeleteModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70] p-4">
+            <div className="bg-white rounded-lg p-8 max-w-md w-full shadow-2xl">
+              {/* Icône d'alerte */}
+              <div className="flex justify-center mb-6">
+                <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center">
+                  <Trash2 className="w-12 h-12 text-red-600" />
+                </div>
+              </div>
+
+              {/* Titre */}
+              <h3 className="font-title text-2xl font-bold text-text text-center mb-2">
+                Supprimer {selectedMessages.length} message(s) ?
+              </h3>
+
+              {/* Message */}
+              <p className="font-body text-center text-gray-600 mb-6">
+                Cette action est irréversible. Les messages sélectionnés seront définitivement supprimés.
+              </p>
+
+              {/* Liste des messages à supprimer */}
+              <div className="bg-red-50 border-l-4 border-red-500 rounded-lg p-4 mb-6 max-h-64 overflow-y-auto">
+                <p className="font-body text-sm font-semibold text-gray-700 mb-3">
+                  Messages à supprimer :
+                </p>
+                <div className="space-y-2">
+                  {messages
+                    .filter(m => selectedMessages.includes(m.id))
+                    .map(msg => {
+                      const recipient = clients.find(c => c.id === msg.recipientId);
+                      return (
+                        <div key={msg.id} className="bg-white rounded p-2 border border-red-200">
+                          <p className="font-body text-xs text-gray-600">
+                            <strong>{recipient?.firstName} {recipient?.lastName}</strong> - {msg.subject}
+                          </p>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+
+              {/* Boutons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowBulkDeleteModal(false);
+                  }}
+                  className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg font-body font-semibold hover:bg-gray-50 transition"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={confirmBulkDelete}
+                  className="flex-1 px-6 py-3 bg-red-600 text-white rounded-lg font-body font-semibold hover:bg-red-700 transition shadow-md hover:shadow-lg"
+                >
+                  Supprimer tout
                 </button>
               </div>
             </div>
