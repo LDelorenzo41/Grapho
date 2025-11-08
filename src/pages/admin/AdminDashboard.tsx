@@ -53,7 +53,7 @@ export function AdminDashboard() {
   });
   const [createWithAppointment, setCreateWithAppointment] = useState(false);
   const [availableSlots, setAvailableSlots] = useState<AvailableSlot[]>([]);
-  const [selectedSlot, setSelectedSlot] = useState<AvailableSlot | null>(null);
+  const [selectedSlotIndex, setSelectedSlotIndex] = useState<number | null>(null);
   const [loadingSlots, setLoadingSlots] = useState(false);
 
   useEffect(() => {
@@ -119,11 +119,15 @@ export function AdminDashboard() {
       });
 
       // 2. Si l'option "créer un premier RDV" est cochée et qu'un créneau est sélectionné
-      if (createWithAppointment && selectedSlot) {
+      if (createWithAppointment && selectedSlotIndex !== null) {
+        const slot = availableSlots[selectedSlotIndex];
+        const startDateTime = new Date(`${slot.date}T${slot.startTime}`);
+        const endDateTime = new Date(`${slot.date}T${slot.endTime}`);
+
         await dataAdapter.appointments.create({
           clientId: createdUser.id,
-          startTime: selectedSlot.startTime,
-          endTime: selectedSlot.endTime,
+          startTime: startDateTime.toISOString(),
+          endTime: endDateTime.toISOString(),
           status: 'scheduled',
           notes: 'Premier rendez-vous',
         });
@@ -133,7 +137,7 @@ export function AdminDashboard() {
       setShowCreateClientModal(false);
       setNewClient({ firstName: '', lastName: '', email: '', phone: '' });
       setCreateWithAppointment(false);
-      setSelectedSlot(null);
+      setSelectedSlotIndex(null);
       setAvailableSlots([]);
       await loadData();
       alert('Client créé avec succès !');
@@ -590,7 +594,7 @@ export function AdminDashboard() {
                     setShowCreateClientModal(false);
                     setNewClient({ firstName: '', lastName: '', email: '', phone: '' });
                     setCreateWithAppointment(false);
-                    setSelectedSlot(null);
+                    setSelectedSlotIndex(null);
                   }}
                   className="p-1 hover:bg-gray-100 rounded"
                 >
@@ -682,56 +686,62 @@ export function AdminDashboard() {
                         <p className="font-body text-sm text-orange-600">Aucun créneau disponible pour les 60 prochains jours.</p>
                       ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-64 overflow-y-auto border border-gray-200 rounded-lg p-3">
-                          {availableSlots.map((slot, index) => (
-                            <button
-                              key={index}
-                              type="button"
-                              onClick={() => setSelectedSlot(slot)}
-                              className={`p-3 border-2 rounded-lg text-left transition ${
-                                selectedSlot === slot
-                                  ? 'border-primary bg-primary/10'
-                                  : 'border-gray-300 hover:border-primary/50 bg-white'
-                              }`}
-                            >
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1 min-w-0">
-                                  <p className="font-body text-sm font-semibold text-text">
-                                    {new Date(slot.startTime).toLocaleDateString('fr-FR', {
-                                      weekday: 'short',
-                                      day: 'numeric',
-                                      month: 'short',
-                                    })}
-                                  </p>
-                                  <p className="font-body text-xs text-gray-600">
-                                    {new Date(slot.startTime).toLocaleTimeString('fr-FR', {
-                                      hour: '2-digit',
-                                      minute: '2-digit',
-                                    })}
-                                  </p>
+                          {availableSlots.map((slot, index) => {
+                            const slotDateTime = new Date(`${slot.date}T${slot.startTime}`);
+                            const isSelected = selectedSlotIndex === index;
+
+                            return (
+                              <button
+                                key={index}
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setSelectedSlotIndex(index);
+                                }}
+                                className={`p-3 border-2 rounded-lg text-left transition ${
+                                  isSelected
+                                    ? 'border-primary bg-primary/10'
+                                    : 'border-gray-300 hover:border-primary/50 bg-white'
+                                }`}
+                              >
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1 min-w-0">
+                                    <p className="font-body text-sm font-semibold text-text">
+                                      {slotDateTime.toLocaleDateString('fr-FR', {
+                                        weekday: 'short',
+                                        day: 'numeric',
+                                        month: 'short',
+                                      })}
+                                    </p>
+                                    <p className="font-body text-xs text-gray-600">
+                                      {slot.startTime}
+                                    </p>
+                                  </div>
+                                  {isSelected && (
+                                    <Check className="w-5 h-5 text-primary flex-shrink-0" />
+                                  )}
                                 </div>
-                                {selectedSlot === slot && (
-                                  <Check className="w-5 h-5 text-primary flex-shrink-0" />
-                                )}
-                              </div>
-                            </button>
-                          ))}
+                              </button>
+                            );
+                          })}
                         </div>
                       )}
 
-                      {selectedSlot && (
-  <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-    <p className="font-body text-sm text-green-800">
-      <strong>Créneau sélectionné :</strong>{' '}
-      {new Date(`${selectedSlot.date}T${selectedSlot.startTime}`).toLocaleDateString('fr-FR', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-      })}{' '}
-      à {selectedSlot.startTime}
-    </p>
-  </div>
-)}
+                      {selectedSlotIndex !== null && availableSlots[selectedSlotIndex] && (
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                          <p className="font-body text-sm text-green-800">
+                            <strong>Créneau sélectionné :</strong>{' '}
+                            {new Date(`${availableSlots[selectedSlotIndex].date}T${availableSlots[selectedSlotIndex].startTime}`).toLocaleDateString('fr-FR', {
+                              weekday: 'long',
+                              day: 'numeric',
+                              month: 'long',
+                              year: 'numeric',
+                            })}{' '}
+                            à {availableSlots[selectedSlotIndex].startTime}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -744,7 +754,7 @@ export function AdminDashboard() {
                       setShowCreateClientModal(false);
                       setNewClient({ firstName: '', lastName: '', email: '', phone: '' });
                       setCreateWithAppointment(false);
-                      setSelectedSlot(null);
+                      setSelectedSlotIndex(null);
                     }}
                     className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition font-body"
                   >
@@ -752,7 +762,7 @@ export function AdminDashboard() {
                   </button>
                   <button
                     type="submit"
-                    disabled={createWithAppointment && !selectedSlot}
+                    disabled={createWithAppointment && selectedSlotIndex === null}
                     className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-body font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Créer le client
