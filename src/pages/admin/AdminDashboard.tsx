@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Users, Calendar as CalendarIcon, FileText, Plus, X, Edit2, Trash2, MessageSquare, AlertTriangle } from 'lucide-react';
+import { Users, Calendar as CalendarIcon, FileText, Plus, X, Edit2, Trash2, MessageSquare, AlertTriangle, UserPlus, Check } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { dataAdapter, type User, type Appointment, type Document, type Message } from '../../lib/data';
+import { dataAdapter, type User, type Appointment, type Document, type Message, type AvailableSlot } from '../../lib/data';
 import { Calendar } from '../../components/Calendar/Calendar';
 
 export function AdminDashboard() {
@@ -43,44 +43,105 @@ export function AdminDashboard() {
   const [currentPage, setCurrentPage] = useState(1);
   const appointmentsPerPage = 10;
 
-  // ✅ NOUVELLE FONCTION : Retourne les classes CSS pour les bordures selon le statut
-  const getAppointmentBorderStyles = (status: string) => {
-    switch (status) {
-      case 'scheduled':
-        return 'border-l-4 border-blue-500'; // Bleu pour "Prévu"
-      case 'confirmed':
-        return 'border-l-4 border-green-700'; // Vert foncé pour "Confirmé"
-      case 'cancelled':
-        return 'border-l-4 border-red-500'; // Rouge pour "Annulé"
-      case 'completed':
-        return 'border-l-4 border-gray-400'; // Gris pour "Terminé"
-      default:
-        return 'border-l-4 border-gray-300';
-    }
-  };
+  // ✅ NOUVEAU : États pour la création de client
+  const [showCreateClientModal, setShowCreateClientModal] = useState(false);
+  const [newClient, setNewClient] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+  });
+  const [createWithAppointment, setCreateWithAppointment] = useState(false);
+  const [availableSlots, setAvailableSlots] = useState<AvailableSlot[]>([]);
+  const [selectedSlot, setSelectedSlot] = useState<AvailableSlot | null>(null);
+  const [loadingSlots, setLoadingSlots] = useState(false);
 
   useEffect(() => {
     loadData();
   }, []);
 
   const loadData = async () => {
-  try {
-    const [allUsers, allAppts, allDocs, allMsgs] = await Promise.all([
-      dataAdapter.users.getAll(),
-      dataAdapter.appointments.getAll(),
-      dataAdapter.documents.getAll(),
-      dataAdapter.messages.getAll(),
-    ]);
-    setClients(allUsers.filter(u => u.role === 'client'));
-    setAppointments(allAppts);
-    setDocuments(allDocs);
-    setMessages(allMsgs.filter(m => user && m.senderId === user.id));
-  } catch (error) {
-    console.error('Error loading data:', error);
-  } finally {
-    setLoading(false);
-  }
-};
+    try {
+      const [allUsers, allAppts, allDocs, allMsgs] = await Promise.all([
+        dataAdapter.users.getAll(),
+        dataAdapter.appointments.getAll(),
+        dataAdapter.documents.getAll(),
+        dataAdapter.messages.getAll(),
+      ]);
+      setClients(allUsers.filter(u => u.role === 'client'));
+      setAppointments(allAppts);
+      setDocuments(allDocs);
+      setMessages(allMsgs.filter(m => user && m.senderId === user.id));
+    } catch (error) {
+      console.error('Error loading data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ✅ NOUVEAU : Charger les créneaux disponibles pour le mois en cours + 1 mois
+  const loadAvailableSlots = async () => {
+    setLoadingSlots(true);
+    try {
+      const today = new Date();
+      const startDate = today.toISOString().split('T')[0]; // YYYY-MM-DD
+      const endDate = new Date(today.getTime() + 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]; // +60 jours
+
+      const slots = await dataAdapter.appointments.getAvailableSlots(startDate, endDate);
+      setAvailableSlots(slots);
+    } catch (error) {
+      console.error('Error loading available slots:', error);
+    } finally {
+      setLoadingSlots(false);
+    }
+  };
+
+  // ✅ NOUVEAU : Ouvrir la modale de création de client
+  const openCreateClientModal = () => {
+    setShowCreateClientModal(true);
+    loadAvailableSlots();
+  };
+
+  // ✅ NOUVEAU : Fonction de création de client
+  const handleCreateClient = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    try {
+      // 1. Créer l'utilisateur avec mot de passe provisoire
+      const createdUser = await dataAdapter.users.create({
+        firstName: newClient.firstName,
+        lastName: newClient.lastName,
+        email: newClient.email,
+        phone: newClient.phone,
+        role: 'client',
+        password: 'Grapho2025',
+        passwordResetRequired: true, // ✅ Forcer le changement de mot de passe
+      });
+
+      // 2. Si l'option "créer un premier RDV" est cochée et qu'un créneau est sélectionné
+      if (createWithAppointment && selectedSlot) {
+        await dataAdapter.appointments.create({
+          clientId: createdUser.id,
+          startTime: selectedSlot.startTime,
+          endTime: selectedSlot.endTime,
+          status: 'scheduled',
+          notes: 'Premier rendez-vous',
+        });
+      }
+
+      // 3. Réinitialiser le formulaire et recharger les données
+      setShowCreateClientModal(false);
+      setNewClient({ firstName: '', lastName: '', email: '', phone: '' });
+      setCreateWithAppointment(false);
+      setSelectedSlot(null);
+      setAvailableSlots([]);
+      await loadData();
+      alert('Client créé avec succès !');
+    } catch (error) {
+      console.error('Error creating client:', error);
+      alert('Erreur lors de la création du client. Vérifiez que l\'email n\'est pas déjà utilisé.');
+    }
+  };
 
   /**
    * Vérifie si un rendez-vous chevauche avec des rendez-vous existants
@@ -121,7 +182,7 @@ export function AdminDashboard() {
 
   const handleAddAppointment = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const startDateTime = new Date(`${newAppointment.date}T${newAppointment.startTime}`);
     const endDateTime = new Date(startDateTime.getTime() + parseInt(newAppointment.duration) * 60000);
 
@@ -273,10 +334,13 @@ export function AdminDashboard() {
     setShowEditModal(true);
   };
 
-  // ✅ CORRECTION : Filtrer les prochains RDV avec statut 'scheduled' OU 'confirmed'
+  // ✅ MODIFIÉ : Filtrer pour inclure 'confirmed' + badge compte
   const upcomingAppointments = appointments
     .filter(apt => (apt.status === 'scheduled' || apt.status === 'confirmed') && new Date(apt.startTime) > new Date())
     .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+
+  // ✅ NOUVEAU : Compter les rendez-vous à confirmer
+  const toConfirmCount = upcomingAppointments.filter(apt => apt.status === 'scheduled').length;
 
   // Pagination
   const totalPages = Math.ceil(upcomingAppointments.length / appointmentsPerPage);
@@ -294,6 +358,22 @@ export function AdminDashboard() {
   // Calculer les documents déposés (par l'admin) et reçus (des clients)
   const myDocuments = documents.filter(doc => user && doc.uploadedBy === user.id);
   const receivedDocuments = documents.filter(doc => user && doc.uploadedBy !== user.id);
+
+  // ✅ NOUVEAU : Fonction pour obtenir la couleur de bordure selon le statut
+  const getAppointmentBorderColor = (status: string): string => {
+    switch (status) {
+      case 'scheduled':
+        return 'border-blue-500';
+      case 'confirmed':
+        return 'border-green-700';
+      case 'cancelled':
+        return 'border-red-500';
+      case 'completed':
+        return 'border-gray-400';
+      default:
+        return 'border-gray-300';
+    }
+  };
 
   if (loading) {
     return <div className="py-16 text-center"><p className="font-body text-gray-600">Chargement...</p></div>;
@@ -348,10 +428,10 @@ export function AdminDashboard() {
             <div className="flex items-baseline space-x-2 mt-1">
               <p className="font-body text-2xl font-bold text-blue-600">{receivedDocuments.length}</p>
               <span className="font-body text-sm text-gray-600">reçu(s)</span>
-              
-        </div>
+            </div>
             <p className="font-body text-sm text-gray-600 mt-2">Gérer les documents →</p>
           </Link>
+
           <Link
             to="/admin/messages"
             className="bg-white rounded-lg shadow-sm border p-6 hover:shadow-md transition cursor-pointer group"
@@ -366,15 +446,24 @@ export function AdminDashboard() {
         </div>
 
         <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3">
             <h2 className="font-title text-2xl font-bold text-text">Calendrier</h2>
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="flex items-center space-x-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition font-body font-semibold"
-            >
-              <Plus className="w-5 h-5" />
-              <span>Ajouter un RDV</span>
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={openCreateClientModal}
+                className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-body font-semibold"
+              >
+                <UserPlus className="w-5 h-5" />
+                <span>Créer un client</span>
+              </button>
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="flex items-center space-x-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition font-body font-semibold"
+              >
+                <Plus className="w-5 h-5" />
+                <span>Ajouter un RDV</span>
+              </button>
+            </div>
           </div>
           <Calendar
             appointments={appointments}
@@ -383,42 +472,36 @@ export function AdminDashboard() {
           />
         </div>
 
-        {/* ✅ SECTION MODIFIÉE : Prochains rendez-vous avec bordures colorées */}
+        {/* ✅ SECTION : Prochains rendez-vous avec badge de confirmation */}
         <div className="bg-white rounded-lg shadow-sm border p-6">
           <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-4">
-              <h2 className="font-title text-2xl font-bold text-text">
-                Prochains rendez-vous
-              </h2>
-              {upcomingAppointments.length > 0 && (
-                <div className="flex items-center gap-3">
-                  <span className="text-lg font-normal text-gray-500">
-                    ({upcomingAppointments.length} au total)
-                  </span>
-                  {/* ✅ NOUVEAU : Badge indiquant les RDV à confirmer */}
-                  {upcomingAppointments.filter(apt => apt.status === 'scheduled').length > 0 && (
-                    <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-body font-semibold flex items-center gap-1">
-                      <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
-                      {upcomingAppointments.filter(apt => apt.status === 'scheduled').length} à confirmer
-                    </span>
-                  )}
-                </div>
+            <div className="flex items-center gap-3">
+              <h2 className="font-title text-2xl font-bold text-text">Prochains rendez-vous</h2>
+              {toConfirmCount > 0 && (
+                <span className="bg-orange-500 text-white px-3 py-1 rounded-full text-sm font-body font-semibold">
+                  {toConfirmCount} à confirmer
+                </span>
               )}
             </div>
+            {upcomingAppointments.length > 0 && (
+              <span className="text-lg font-normal text-gray-500 font-body">
+                ({upcomingAppointments.length} au total)
+              </span>
+            )}
           </div>
 
           {upcomingAppointments.length === 0 ? (
             <p className="font-body text-gray-600 text-center py-8">Aucun rendez-vous à venir</p>
           ) : (
             <>
-              {/* Grille 2 colonnes responsive avec bordures colorées */}
+              {/* Grille 2 colonnes responsive avec couleurs de bordure */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
                 {currentAppointments.map(apt => {
                   const client = clients.find(c => c.id === apt.clientId);
                   return (
-                    <div 
-                      key={apt.id} 
-                      className={`${getAppointmentBorderStyles(apt.status)} pl-4 py-3 bg-gray-50 rounded-r-lg flex items-start justify-between group hover:bg-gray-100 transition`}
+                    <div
+                      key={apt.id}
+                      className={`border-l-4 ${getAppointmentBorderColor(apt.status)} pl-4 py-3 bg-gray-50 rounded-r-lg flex items-start justify-between group hover:bg-gray-100 transition`}
                     >
                       <div className="flex-1 min-w-0">
                         <p className="font-body font-semibold text-text truncate">
@@ -496,28 +579,208 @@ export function AdminDashboard() {
           )}
         </div>
 
+        {/* ✅ NOUVELLE MODALE : Création de client */}
+        {showCreateClientModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="font-title text-2xl font-bold text-text">Créer un nouveau client</h3>
+                <button
+                  onClick={() => {
+                    setShowCreateClientModal(false);
+                    setNewClient({ firstName: '', lastName: '', email: '', phone: '' });
+                    setCreateWithAppointment(false);
+                    setSelectedSlot(null);
+                  }}
+                  className="p-1 hover:bg-gray-100 rounded"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleCreateClient} className="space-y-6">
+                {/* Informations client */}
+                <div className="bg-gray-50 rounded-lg p-4 space-y-4">
+                  <h4 className="font-body font-semibold text-text">Informations du client</h4>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block font-body text-sm font-medium text-text mb-2">Prénom *</label>
+                      <input
+                        type="text"
+                        required
+                        value={newClient.firstName}
+                        onChange={(e) => setNewClient({ ...newClient, firstName: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent font-body"
+                        placeholder="Jean"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-body text-sm font-medium text-text mb-2">Nom *</label>
+                      <input
+                        type="text"
+                        required
+                        value={newClient.lastName}
+                        onChange={(e) => setNewClient({ ...newClient, lastName: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent font-body"
+                        placeholder="Dupont"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block font-body text-sm font-medium text-text mb-2">Email *</label>
+                      <input
+                        type="email"
+                        required
+                        value={newClient.email}
+                        onChange={(e) => setNewClient({ ...newClient, email: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent font-body"
+                        placeholder="jean.dupont@example.com"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-body text-sm font-medium text-text mb-2">Téléphone *</label>
+                      <input
+                        type="tel"
+                        required
+                        value={newClient.phone}
+                        onChange={(e) => setNewClient({ ...newClient, phone: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent font-body"
+                        placeholder="06 12 34 56 78"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <p className="font-body text-sm text-blue-800">
+                      <strong>Mot de passe provisoire :</strong> Grapho2025 (le client devra le changer à sa première connexion)
+                    </p>
+                  </div>
+                </div>
+
+                {/* Option premier rendez-vous */}
+                <div className="bg-gray-50 rounded-lg p-4 space-y-4">
+                  <label className="flex items-center space-x-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={createWithAppointment}
+                      onChange={(e) => setCreateWithAppointment(e.target.checked)}
+                      className="w-5 h-5 text-primary focus:ring-2 focus:ring-primary rounded"
+                    />
+                    <span className="font-body font-semibold text-text">Créer un premier rendez-vous</span>
+                  </label>
+
+                  {createWithAppointment && (
+                    <div className="mt-4 space-y-3">
+                      <h4 className="font-body font-semibold text-text">Choisir un créneau disponible</h4>
+
+                      {loadingSlots ? (
+                        <p className="font-body text-sm text-gray-600">Chargement des créneaux disponibles...</p>
+                      ) : availableSlots.length === 0 ? (
+                        <p className="font-body text-sm text-orange-600">Aucun créneau disponible pour les 60 prochains jours.</p>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-64 overflow-y-auto border border-gray-200 rounded-lg p-3">
+                          {availableSlots.map((slot, index) => (
+                            <button
+                              key={index}
+                              type="button"
+                              onClick={() => setSelectedSlot(slot)}
+                              className={`p-3 border-2 rounded-lg text-left transition ${
+                                selectedSlot === slot
+                                  ? 'border-primary bg-primary/10'
+                                  : 'border-gray-300 hover:border-primary/50 bg-white'
+                              }`}
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-body text-sm font-semibold text-text">
+                                    {new Date(slot.startTime).toLocaleDateString('fr-FR', {
+                                      weekday: 'short',
+                                      day: 'numeric',
+                                      month: 'short',
+                                    })}
+                                  </p>
+                                  <p className="font-body text-xs text-gray-600">
+                                    {new Date(slot.startTime).toLocaleTimeString('fr-FR', {
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                    })}
+                                  </p>
+                                </div>
+                                {selectedSlot === slot && (
+                                  <Check className="w-5 h-5 text-primary flex-shrink-0" />
+                                )}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {selectedSlot && (
+  <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+    <p className="font-body text-sm text-green-800">
+      <strong>Créneau sélectionné :</strong>{' '}
+      {new Date(`${selectedSlot.date}T${selectedSlot.startTime}`).toLocaleDateString('fr-FR', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      })}{' '}
+      à {selectedSlot.startTime}
+    </p>
+  </div>
+)}
+                    </div>
+                  )}
+                </div>
+
+                {/* Boutons */}
+                <div className="flex space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowCreateClientModal(false);
+                      setNewClient({ firstName: '', lastName: '', email: '', phone: '' });
+                      setCreateWithAppointment(false);
+                      setSelectedSlot(null);
+                    }}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition font-body"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={createWithAppointment && !selectedSlot}
+                    className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-body font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Créer le client
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
         {/* Modale de confirmation de suppression */}
         {showDeleteModal && appointmentToDelete && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70] p-4">
             <div className="bg-white rounded-lg p-8 max-w-md w-full shadow-2xl">
-              {/* Icône d'alerte */}
               <div className="flex justify-center mb-6">
                 <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center">
                   <Trash2 className="w-12 h-12 text-red-600" />
                 </div>
               </div>
 
-              {/* Titre */}
               <h3 className="font-title text-2xl font-bold text-text text-center mb-2">
                 Supprimer ce rendez-vous ?
               </h3>
 
-              {/* Message */}
               <p className="font-body text-center text-gray-600 mb-6">
                 Cette action est irréversible. Le rendez-vous sera définitivement supprimé.
               </p>
 
-              {/* Détails du rendez-vous */}
               <div className="bg-red-50 border-l-4 border-red-500 rounded-lg p-4 mb-6">
                 <p className="font-body text-sm text-gray-700 mb-2">
                   <strong>Client :</strong> {clients.find(c => c.id === appointmentToDelete.clientId)?.firstName} {clients.find(c => c.id === appointmentToDelete.clientId)?.lastName}
@@ -541,7 +804,6 @@ export function AdminDashboard() {
                 </p>
               </div>
 
-              {/* Boutons */}
               <div className="flex gap-3">
                 <button
                   onClick={() => {

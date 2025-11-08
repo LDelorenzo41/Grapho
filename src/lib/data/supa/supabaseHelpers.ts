@@ -8,15 +8,15 @@ import type { User, Appointment, Message, Document } from '../types';
 
 // Convertir camelCase vers snake_case pour l'insertion dans Supabase
 export function userToSnakeCase(user: any): any {
-  const { firstName, lastName, dateOfBirth, createdAt, updatedAt, ...rest } = user;
+  const { firstName, lastName, dateOfBirth, passwordResetRequired, createdAt, updatedAt, ...rest } = user;
   return {
     ...rest,
     ...(firstName !== undefined && { first_name: firstName }),
     ...(lastName !== undefined && { last_name: lastName }),
     ...(dateOfBirth !== undefined && { date_of_birth: dateOfBirth }),
+    ...(passwordResetRequired !== undefined && { password_reset_required: passwordResetRequired }), // ✅ NOUVEAU
     ...(createdAt !== undefined && { created_at: createdAt }),
     ...(updatedAt !== undefined && { updated_at: updatedAt }),
-    // ✅ NOUVEAU : Le champ status est déjà en snake_case, on le garde tel quel
   };
 }
 
@@ -30,7 +30,8 @@ export function userFromSnakeCase(data: any): User {
     lastName: data.last_name,
     phone: data.phone,
     dateOfBirth: data.date_of_birth,
-    status: data.status, // ✅ NOUVEAU : Récupérer le statut du client
+    status: data.status,
+    passwordResetRequired: data.password_reset_required, // ✅ NOUVEAU
     createdAt: data.created_at,
     updatedAt: data.updated_at,
   };

@@ -32,6 +32,20 @@ export function Login() {
 
     try {
       const loggedInUser = await login(email, password);
+      
+      // ✅ NOUVEAU : Vérifier si l'utilisateur doit changer son mot de passe
+      if (loggedInUser?.passwordResetRequired) {
+        // Rediriger vers une page de changement de mot de passe obligatoire
+        navigate('/force-password-change', { 
+          state: { 
+            userId: loggedInUser.id,
+            userEmail: loggedInUser.email 
+          } 
+        });
+        return;
+      }
+      
+      // Navigation normale
       if (loggedInUser?.role === 'admin') {
         navigate('/admin/dashboard');
       } else {

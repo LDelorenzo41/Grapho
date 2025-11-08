@@ -14,6 +14,7 @@ export interface User {
   phone?: string;
   dateOfBirth?: string;
   status?: ClientStatus; // ✅ NOUVEAU : Statut du client (active par défaut)
+  passwordResetRequired?: boolean; // ✅ NOUVEAU : Forcer le changement de mot de passe
   createdAt: string;
   updatedAt: string;
 }
