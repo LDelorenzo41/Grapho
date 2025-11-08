@@ -25,14 +25,14 @@ import {
 
 const getSupabaseClient = (): SupabaseClient | null => {
   const url = import.meta.env.VITE_SUPABASE_URL;
-  const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-  if (!url || !key) {
+  if (!url || !anonKey) {
     console.warn('Supabase credentials not configured');
     return null;
   }
 
-  return createClient(url, key);
+  return createClient(url, anonKey);
 };
 
 export const createSupabaseAdapter = (): DataAdapter => {
@@ -180,8 +180,38 @@ export const createSupabaseAdapter = (): DataAdapter => {
       },
       async delete(id: string) {
         if (!supabase) throw new Error('Supabase not configured');
-        const { error } = await supabase.from('users').delete().eq('id', id);
-        if (error) throw error;
+        
+        console.log('🗑️ Appel de l\'Edge Function pour supprimer l\'utilisateur:', id);
+        
+        try {
+          // Appeler l'Edge Function sécurisée
+          const { data, error } = await supabase.functions.invoke('delete-user-admin', {
+            body: { userId: id }
+          });
+          
+          if (error) {
+            console.error('❌ Erreur Edge Function:', error);
+            
+            // Messages d'erreur plus explicites
+            if (error.message?.includes('Forbidden')) {
+              throw new Error('Vous n\'avez pas les droits administrateur pour supprimer cet utilisateur');
+            } else if (error.message?.includes('Cannot delete your own account')) {
+              throw new Error('Vous ne pouvez pas supprimer votre propre compte');
+            } else {
+              throw new Error(`Erreur lors de la suppression : ${error.message}`);
+            }
+          }
+          
+          if (!data?.success) {
+            console.error('❌ Suppression échouée:', data);
+            throw new Error('La suppression a échoué');
+          }
+          
+          console.log('✅ Utilisateur supprimé avec succès:', data);
+        } catch (error: any) {
+          console.error('❌ Erreur lors de la suppression:', error);
+          throw error;
+        }
       },
     },
     appointments: {
