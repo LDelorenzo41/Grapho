@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, FileText, MessageSquare } from 'lucide-react';
+import { Calendar, FileText, MessageSquare, CheckCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { dataAdapter, type Appointment, type Message, type Document } from '../../lib/data';
 import { formatDateTime } from '../../lib/utils/date';
@@ -12,26 +12,39 @@ export function ClientDashboard() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const loadData = async () => {
+    if (!user) return;
+    try {
+      const [apts, msgs, docs] = await Promise.all([
+        dataAdapter.appointments.getByClientId(user.id),
+        dataAdapter.messages.getByUserId(user.id),
+        dataAdapter.documents.getVisibleToUser(user.id, user.role),
+      ]);
+      setAppointments(apts);
+      setMessages(msgs);
+      setDocuments(docs);
+    } catch (error) {
+      console.error('Error loading data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const loadData = async () => {
-      if (!user) return;
-      try {
-        const [apts, msgs, docs] = await Promise.all([
-          dataAdapter.appointments.getByClientId(user.id),
-          dataAdapter.messages.getByUserId(user.id),
-          dataAdapter.documents.getVisibleToUser(user.id, user.role),
-        ]);
-        setAppointments(apts);
-        setMessages(msgs);
-        setDocuments(docs);
-      } catch (error) {
-        console.error('Error loading data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
     loadData();
   }, [user]);
+
+  const handleMarkAsRead = async (messageId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    try {
+      await dataAdapter.messages.markAsRead(messageId);
+      await loadData();
+    } catch (error) {
+      console.error('Error marking message as read:', error);
+    }
+  };
 
   const nextAppointment = appointments
     .filter(apt => apt.status === 'scheduled' && new Date(apt.startTime) > new Date())
@@ -109,12 +122,28 @@ export function ClientDashboard() {
             <h2 className="font-title text-2xl font-bold text-text mb-4">Messages récents</h2>
             <div className="space-y-3">
               {messages.slice(0, 3).map(msg => (
-                <div key={msg.id} className="border-l-4 border-primary pl-4 py-2">
-                  <p className="font-body font-semibold text-text">{msg.subject}</p>
-                  <p className="font-body text-sm text-gray-600 line-clamp-2">{msg.content}</p>
-                  <p className="font-body text-xs text-gray-500 mt-1">
-                    {new Date(msg.sentAt).toLocaleDateString('fr-FR')}
-                  </p>
+                <div key={msg.id} className="border-l-4 border-primary pl-4 py-2 flex items-start justify-between group">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="font-body font-semibold text-text">{msg.subject}</p>
+                      {!msg.read && msg.recipientId === user?.id && (
+                        <span className="inline-block w-2 h-2 bg-primary rounded-full" title="Non lu"></span>
+                      )}
+                    </div>
+                    <p className="font-body text-sm text-gray-600 line-clamp-2">{msg.content}</p>
+                    <p className="font-body text-xs text-gray-500 mt-1">
+                      {new Date(msg.sentAt).toLocaleDateString('fr-FR')}
+                    </p>
+                  </div>
+                  {!msg.read && msg.recipientId === user?.id && (
+                    <button
+                      onClick={(e) => handleMarkAsRead(msg.id, e)}
+                      className="ml-3 p-2 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-full transition opacity-0 group-hover:opacity-100"
+                      title="Marquer comme lu"
+                    >
+                      <CheckCircle className="w-5 h-5" />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -124,3 +153,4 @@ export function ClientDashboard() {
     </div>
   );
 }
+
