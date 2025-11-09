@@ -102,7 +102,25 @@ export function AdminDashboard() {
     loadAvailableSlots();
   };
 
-  // ✅ NOUVEAU : Fonction de création de client
+  // ✅ NOUVEAU : Fonction pour ouvrir le client mail pour le nouveau client
+  const openNewClientEmail = (client: { firstName: string; lastName: string; email: string }) => {
+    const subject = 'Bienvenue sur votre espace Grapho';
+    const body = `Bonjour ${client.firstName},\n\n` +
+      `Votre compte patient Grapho a été créé avec succès !\n\n` +
+      `Vous pouvez dès à présent vous connecter à votre espace personnel pour consulter vos rendez-vous, documents et messages.\n\n` +
+      `📧 Votre email de connexion : ${client.email}\n` +
+      `🔑 Votre mot de passe provisoire : Grapho2025\n\n` +
+      `⚠️ Pour des raisons de sécurité, vous devrez changer votre mot de passe lors de votre première connexion.\n\n` +
+      `Lien de connexion : [VOTRE_URL_DE_CONNEXION]\n\n` +
+      `N'hésitez pas à me contacter si vous avez la moindre question.\n\n` +
+      `Cordialement,\n` +
+      `Votre graphothérapeute`;
+
+    const mailtoLink = `mailto:${client.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.open(mailtoLink, '_blank');
+  };
+
+  // ✅ MODIFIÉ : Fonction de création de client avec ouverture du client mail
   const handleCreateClient = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -133,14 +151,21 @@ export function AdminDashboard() {
         });
       }
 
-      // 3. Réinitialiser le formulaire et recharger les données
+      // 3. Ouvrir le client mail avec le message de bienvenue
+      openNewClientEmail({
+        firstName: newClient.firstName,
+        lastName: newClient.lastName,
+        email: newClient.email,
+      });
+
+      // 4. Réinitialiser le formulaire et recharger les données
       setShowCreateClientModal(false);
       setNewClient({ firstName: '', lastName: '', email: '', phone: '' });
       setCreateWithAppointment(false);
       setSelectedSlotIndex(null);
       setAvailableSlots([]);
       await loadData();
-      alert('Client créé avec succès !');
+      alert('Client créé avec succès ! Un email pré-rempli s\'est ouvert pour envoyer les identifiants.');
     } catch (error) {
       console.error('Error creating client:', error);
       alert('Erreur lors de la création du client. Vérifiez que l\'email n\'est pas déjà utilisé.');
