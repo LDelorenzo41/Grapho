@@ -736,7 +736,7 @@ const openEmailClient = (client: User, appointment: Appointment, emailType: 'con
                         value={newClient.phone}
                         onChange={(e) => setNewClient({ ...newClient, phone: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent font-body"
-                        placeholder="06 12 34 56 78"
+                        placeholder="06 38 60 30 14"
                       />
                     </div>
                   </div>
