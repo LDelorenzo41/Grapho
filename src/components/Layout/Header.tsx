@@ -23,6 +23,11 @@ export function Header() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <Link to="/" className="flex items-center space-x-2">
+            <img
+              src="/android-chrome-192x192.png"
+              alt="Logo Cabinet de Graphothérapie"
+              className="w-8 h-8 sm:w-10 sm:h-10"
+            />
             <span className="font-title text-xl sm:text-2xl font-bold text-primary">
               Cabinet de Graphothérapie
             </span>
@@ -156,3 +161,4 @@ export function Header() {
     </header>
   );
 }
+

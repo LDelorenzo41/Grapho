@@ -9,11 +9,18 @@ export function Legal() {
             <h2 className="font-title text-2xl font-bold text-text mb-4">Éditeur du site</h2>
             <p>
               <strong>Cabinet de Graphothérapie</strong><br />
-              Sophie Martin<br />
-              123 Avenue de la République<br />
-              75000 Paris<br />
-              Email : contact@graphotherapie.fr<br />
-              Téléphone : 06 12 34 56 78
+              Philippine Cornet<br />
+              <p className="font-body text-text">
+  Pôle Val d’Amboise<br />
+  274 rue du Château d’Eau<br />
+  Ilot n°4 – Zone de la Boitardière<br />
+  37530 Chargé<br />
+  <span className="text-sm text-gray-600">
+  </span>
+</p>
+
+              Email : philippine.cornet@gmail.com<br />
+              Téléphone : 06 38 60 30 14
             </p>
           </section>
 
@@ -42,7 +49,7 @@ export function Legal() {
               rectification et de suppression des données vous concernant.
             </p>
             <p>
-              Pour exercer ces droits, vous pouvez nous contacter par email à l'adresse : contact@graphotherapie.fr
+              Pour exercer ces droits, vous pouvez nous contacter par email à l'adresse : philippine.cornet@gmail.com
             </p>
           </section>
 

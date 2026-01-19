@@ -120,8 +120,8 @@ export function ClientData() {
           <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
             <p className="font-body text-sm text-blue-700">
               Pour toute question concernant vos données personnelles, contactez-nous à{' '}
-              <a href="mailto:contact@graphotherapie.fr" className="underline">
-                contact@graphotherapie.fr
+              <a href="mailto:philippine.cornet@gmail.com" className="underline">
+                philippine.cornet@gmail.com
               </a>
             </p>
           </div>

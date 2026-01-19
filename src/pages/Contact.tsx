@@ -50,8 +50,8 @@ export function Contact() {
                   </div>
                   <div>
                     <p className="font-body text-sm text-gray-600">Email</p>
-                    <a href="mailto:contact@graphotherapie.fr" className="font-body text-text hover:text-primary transition">
-                      contact@graphotherapie.fr
+                    <a href="mailto:philippine.cornet@gmail.com" className="font-body text-text hover:text-primary transition">
+                      philippine.cornet@gmail.com
                     </a>
                   </div>
                 </div>
@@ -63,7 +63,7 @@ export function Contact() {
                   <div>
                     <p className="font-body text-sm text-gray-600">Téléphone</p>
                     <a href="tel:0612345678" className="font-body text-text hover:text-primary transition">
-                      06 12 34 56 78
+                      06 38 60 30 14
                     </a>
                   </div>
                 </div>
@@ -75,9 +75,15 @@ export function Contact() {
                   <div>
                     <p className="font-body text-sm text-gray-600">Adresse</p>
                     <p className="font-body text-text">
-                      123 Avenue de la République<br />
-                      75000 Paris
-                    </p>
+  Pôle Val d’Amboise<br />
+  274 rue du Château d’Eau<br />
+  Ilot n°4 – Zone de la Boitardière<br />
+  37530 Chargé<br />
+  <span className="text-sm text-gray-600">
+    Accès PMR, parking gratuit sur place, salle d’attente.
+  </span>
+</p>
+
                   </div>
                 </div>
               </div>

@@ -49,7 +49,7 @@ class MockStorage {
           role: 'admin',
           firstName: 'Sophie',
           lastName: 'Martin',
-          phone: '06 12 34 56 78',
+          phone: '06 38 60 30 14',
           createdAt: now,
           updatedAt: now,
         },

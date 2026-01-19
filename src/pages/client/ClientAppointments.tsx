@@ -28,14 +28,15 @@ export function ClientAppointments() {
   }, [user]);
 
   const handleDownloadICS = (appointment: Appointment) => {
-    if (!user) return;
-    const icsContent = generateICS(
-      appointment,
-      `${user.firstName} ${user.lastName}`,
-      '123 Avenue de la République, 75000 Paris'
-    );
-    downloadICS(icsContent);
-  };
+  if (!user) return;
+  const icsContent = generateICS(
+    appointment,
+    `${user.firstName} ${user.lastName}`,
+    'Pôle Val d’Amboise, 274 rue du Château d’Eau, Ilot n°4 – Zone de la Boitardière, 37530 Chargé'
+  );
+  downloadICS(icsContent);
+};
+
 
   const getStatusColor = (status: string) => {
     switch (status) {

@@ -54,7 +54,7 @@ export function Privacy() {
               <li>Droit d'opposition au traitement</li>
             </ul>
             <p className="mt-4">
-              Pour exercer ces droits, contactez-nous par email à : contact@graphotherapie.fr
+              Pour exercer ces droits, contactez-nous par email à : philippine.cornet@gmail.com
             </p>
           </section>
 
