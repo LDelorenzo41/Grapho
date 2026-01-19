@@ -16,8 +16,10 @@ export function Legal() {
   Ilot n°4 – Zone de la Boitardière<br />
   37530 Chargé<br />
   <span className="text-sm text-gray-600">
+    
   </span>
 </p>
+
 
               Email : philippine.cornet@gmail.com<br />
               Téléphone : 06 38 60 30 14

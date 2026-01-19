@@ -147,7 +147,10 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
         clientPhone: bookingData.phone,
         appointmentDate: format(parseISO(selectedSlot.date), 'EEEE dd MMMM yyyy'),
         appointmentTime: selectedSlot.startTime.slice(0, 5),
+        appointmentType: typeConfig.label,
+        appointmentDuration: typeConfig.duration,
       });
+
 
       if (!emailSent) {
         console.warn('Email de notification non envoyé');
@@ -558,6 +561,12 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
 
             <p className="font-body text-center text-gray-600 mb-6">
               Votre compte a été créé avec succès et votre rendez-vous est confirmé.
+            </p>
+            <p className="font-body text-center text-gray-600 mb-2">
+              Votre compte a été créé avec succès et votre rendez-vous est confirmé.
+            </p>
+            <p className="font-body text-center text-sm text-green-600 mb-6">
+              Un email de confirmation vous a été envoyé.
             </p>
 
             <div 
