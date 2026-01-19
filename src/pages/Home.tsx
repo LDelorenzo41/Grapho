@@ -8,7 +8,7 @@ export function Home() {
 
   return (
     <div>
-      <section className="bg-gradient-to-br from-primary/10 to-secondary/10 py-20">
+      <section className="bg-[#E5B7A4]/20 py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h1 className="font-title text-5xl md:text-6xl font-bold text-text mb-6">
@@ -108,7 +108,7 @@ export function Home() {
         </div>
       </section>
 
-      <section className="py-16 bg-gray-50">
+      <section className="py-16 bg-[#E5B7A4]/20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="font-title text-3xl font-bold text-text mb-12 text-center">
             🖋️ Pourquoi consulter un graphothérapeute ?
@@ -160,7 +160,7 @@ export function Home() {
             🎯 Quand consulter un graphothérapeute ?
           </h2>
           
-          <div className="bg-gradient-to-br from-primary/5 to-secondary/5 rounded-2xl shadow-lg overflow-hidden">
+          <div className="bg-[#E5B7A4]/10 rounded-2xl shadow-lg overflow-hidden">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
               {/* Contenu à gauche */}
               <div className="order-2 md:order-1 p-8 md:p-12">
@@ -206,7 +206,7 @@ export function Home() {
         </div>
       </section>
 
-      <section className="py-16 bg-gradient-to-br from-primary/10 to-secondary/10">
+      <section className="py-16 bg-[#E5B7A4]/20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="font-title text-3xl font-bold text-text mb-4">
             ✨ Prêt à retrouver le plaisir d'écrire ?

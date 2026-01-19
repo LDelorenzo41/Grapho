@@ -12,7 +12,7 @@ export function Method() {
       </div>
 
       {/* Section 1: Qu'est-ce que la graphothérapie - FOND COLORÉ */}
-      <section className="bg-gradient-to-br from-primary/5 to-secondary/5 py-16">
+      <section className="bg-[#E5B7A4]/20 py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-4xl mx-auto">
             <h2 className="font-title text-3xl font-bold text-text mb-6 text-center">🖋️ Qu'est-ce que la graphothérapie ?</h2>
@@ -45,8 +45,8 @@ export function Method() {
         </div>
       </section>
 
-      {/* Section 2: Pour qui ? - FOND BLANC */}
-      <section className="bg-white py-16">
+      {/* Section 2: Pour qui ? - FOND COLORÉ */}
+      <section className="bg-[#E5B7A4]/20 py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="font-title text-3xl font-bold text-text mb-10 text-center">💬 Pour qui ?</h2>
           
@@ -106,8 +106,8 @@ export function Method() {
         </div>
       </section>
 
-      {/* Section 3: Comment se déroule une prise en charge - FOND GRIS CLAIR */}
-      <section className="bg-gray-50 py-16">
+      {/* Section 3: Comment se déroule une prise en charge - FOND BLANC */}
+      <section className="bg-white py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="font-title text-3xl font-bold text-text mb-10 text-center">🧭 Comment se déroule une prise en charge ?</h2>
           

@@ -45,38 +45,46 @@ export function FAQ() {
   };
 
   return (
-    <div className="py-12">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h1 className="font-title text-4xl md:text-5xl font-bold text-text mb-4 text-center">
-          Questions fréquentes
-        </h1>
-        <p className="font-body text-lg text-gray-600 text-center mb-12">
-          Retrouvez les réponses aux questions les plus courantes
-        </p>
-
-        <div className="space-y-4">
-          {faqs.map((faq, index) => (
-            <div key={index} className="bg-white rounded-lg shadow-sm border border-gray-200">
-              <button
-                onClick={() => toggleFAQ(index)}
-                className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition"
-              >
-                <span className="font-title text-lg font-semibold text-text pr-4">{faq.question}</span>
-                {openIndex === index ? (
-                  <ChevronUp className="w-5 h-5 text-primary flex-shrink-0" />
-                ) : (
-                  <ChevronDown className="w-5 h-5 text-primary flex-shrink-0" />
-                )}
-              </button>
-              {openIndex === index && (
-                <div className="px-6 pb-4">
-                  <p className="font-body text-gray-700">{faq.answer}</p>
-                </div>
-              )}
-            </div>
-          ))}
+    <div>
+      {/* Section titre - FOND BLANC */}
+      <section className="bg-white py-12">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h1 className="font-title text-4xl md:text-5xl font-bold text-text mb-4 text-center">
+            Questions fréquentes
+          </h1>
+          <p className="font-body text-lg text-gray-600 text-center">
+            Retrouvez les réponses aux questions les plus courantes
+          </p>
         </div>
-      </div>
+      </section>
+
+      {/* Section questions - FOND COLORÉ */}
+      <section className="bg-[#E5B7A4]/20 py-12">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="space-y-4">
+            {faqs.map((faq, index) => (
+              <div key={index} className="bg-white rounded-lg shadow-sm border border-gray-200">
+                <button
+                  onClick={() => toggleFAQ(index)}
+                  className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition"
+                >
+                  <span className="font-title text-lg font-semibold text-text pr-4">{faq.question}</span>
+                  {openIndex === index ? (
+                    <ChevronUp className="w-5 h-5 text-primary flex-shrink-0" />
+                  ) : (
+                    <ChevronDown className="w-5 h-5 text-primary flex-shrink-0" />
+                  )}
+                </button>
+                {openIndex === index && (
+                  <div className="px-6 pb-4">
+                    <p className="font-body text-gray-700">{faq.answer}</p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
