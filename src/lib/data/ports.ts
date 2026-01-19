@@ -29,7 +29,8 @@ export interface AppointmentsRepository {
   getAll(): Promise<Appointment[]>;
   getById(id: string): Promise<Appointment | null>;
   getByClientId(clientId: string): Promise<Appointment[]>;
-  getAvailableSlots(startDate: string, endDate: string): Promise<AvailableSlot[]>;
+  getAvailableSlots(startDate: string, endDate: string, appointmentType?: string): Promise<AvailableSlot[]>;
+
   create(appointment: Omit<Appointment, 'id' | 'createdAt' | 'updatedAt'>): Promise<Appointment>;
   update(id: string, appointment: Partial<Appointment>): Promise<Appointment>;
   delete(id: string): Promise<void>;

@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Mail, Phone, MapPin, Calendar } from 'lucide-react';
+import { Mail, Phone, MapPin, Calendar, Clock, Info } from 'lucide-react';
 import { BookingCalendar } from '../components/BookingCalendar';
+import { CALENDAR_COLORS } from '../lib/appointment';
 
 export function Contact() {
   const [showBooking, setShowBooking] = useState(false);
@@ -27,7 +28,7 @@ export function Contact() {
                   Prenez votre premier rendez-vous
                 </h2>
                 <p className="font-body text-white/90 text-lg">
-                  Consultation d'une heure - Choisissez votre créneau
+                  Premier RDV (30 min) ou Séance de remédiation (1h)
                 </p>
               </div>
               <button
@@ -95,32 +96,86 @@ export function Contact() {
                 </div>
               </div>
 
-              <div className="bg-[#E5B7A4]/10 rounded-lg p-6">
-                <h3 className="font-title text-lg font-bold text-text mb-3">Horaires de consultation</h3>
-                <div className="space-y-2 font-body text-gray-700">
+              {/* Vignette Horaires de consultation - MISE À JOUR */}
+              <div 
+                className="rounded-lg p-6"
+                style={{ backgroundColor: `${CALENDAR_COLORS.available}15` }}
+              >
+                <div className="flex items-center gap-2 mb-4">
+                  <Clock className="w-5 h-5" style={{ color: CALENDAR_COLORS.available }} />
+                  <h3 className="font-title text-lg font-bold text-text">Horaires de consultation</h3>
+                </div>
+                
+                {/* Horaires normaux */}
+                <div className="space-y-2 font-body text-gray-700 mb-4">
                   <div className="flex justify-between">
                     <span>Lundi</span>
-                    <span className="text-right">9h00 - 12h00, 14h00 - 18h00</span>
+                    <span className="text-gray-400">Fermé</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Mardi</span>
-                    <span className="text-gray-500">Fermé</span>
+                    <span className="text-gray-400">Fermé</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Mercredi</span>
-                    <span className="text-right">9h00 - 12h00, 14h00 - 18h00</span>
+                  <div className="flex justify-between items-start">
+                    <span className="font-semibold" style={{ color: CALENDAR_COLORS.available }}>Mercredi</span>
+                    <span className="text-right">9h30 - 12h30, 13h00 - 16h00</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Jeudi</span>
-                    <span className="text-gray-500">Fermé</span>
+                  <div className="flex justify-between items-start">
+                    <span className="font-semibold" style={{ color: CALENDAR_COLORS.available }}>Jeudi</span>
+                    <span className="text-right">9h30 - 12h30, 13h00 - 15h00</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Vendredi</span>
-                    <span className="text-right">9h00 - 12h00</span>
+                    <span className="text-gray-400">Fermé</span>
+                  </div>
+                  <div className="flex justify-between items-start">
+                    <span className="font-semibold" style={{ color: CALENDAR_COLORS.available }}>Samedi</span>
+                    <span className="text-right">10h00 - 13h00</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Samedi - Dimanche</span>
-                    <span className="text-gray-500">Fermé</span>
+                    <span>Dimanche</span>
+                    <span className="text-gray-400">Fermé</span>
+                  </div>
+                </div>
+
+                {/* Note vacances scolaires */}
+                <div 
+                  className="mt-4 p-3 rounded-lg flex items-start gap-3"
+                  style={{ backgroundColor: `${CALENDAR_COLORS.accent}30` }}
+                >
+                  <Info className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: CALENDAR_COLORS.unavailable }} />
+                  <div className="font-body text-sm text-gray-700">
+                    <p className="font-semibold mb-1">Vacances scolaires & jours fériés</p>
+                    <p>Horaires étendus les mercredis, jeudis et samedis :</p>
+                    <p className="mt-1">9h30 - 12h30, 13h30 - 18h30</p>
+                  </div>
+                </div>
+
+                {/* Types de RDV */}
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <p className="font-body text-sm font-semibold text-text mb-2">Types de rendez-vous :</p>
+                  <div className="space-y-1 font-body text-sm text-gray-600">
+                    <div className="flex items-center gap-2">
+                      <span 
+                        className="w-2 h-2 rounded-full"
+                        style={{ backgroundColor: CALENDAR_COLORS.available }}
+                      />
+                      <span>Premier rendez-vous : 30 minutes</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span 
+                        className="w-2 h-2 rounded-full"
+                        style={{ backgroundColor: CALENDAR_COLORS.available }}
+                      />
+                      <span>Séance de remédiation : 1 heure</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span 
+                        className="w-2 h-2 rounded-full"
+                        style={{ backgroundColor: CALENDAR_COLORS.accent }}
+                      />
+                      <span>Bilan : sur rendez-vous au cabinet</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -190,4 +245,5 @@ export function Contact() {
     </div>
   );
 }
+
 

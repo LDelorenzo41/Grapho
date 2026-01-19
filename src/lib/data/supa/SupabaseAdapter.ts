@@ -22,6 +22,13 @@ import {
   documentToSnakeCase,
   documentFromSnakeCase
 } from './supabaseHelpers';
+// Ajouter ces imports en haut du fichier SupabaseAdapter.ts
+import {
+  getAvailableSlots as calculateAvailableSlots,
+  type ExistingAppointment,
+} from '../../appointment/availabilityService';
+import type { AppointmentType } from '../../appointment/appointmentConfig';
+
 
 const getSupabaseClient = (): SupabaseClient | null => {
   const url = import.meta.env.VITE_SUPABASE_URL;
@@ -240,70 +247,44 @@ export const createSupabaseAdapter = (): DataAdapter => {
         if (error) throw error;
         return (data || []).map(appointmentFromSnakeCase);
       },
-      async getAvailableSlots(startDate: string, endDate: string): Promise<AvailableSlot[]> {
-        if (!supabase) return [];
+async getAvailableSlots(
+  startDate: string, 
+  endDate: string,
+  appointmentType?: string
+): Promise<AvailableSlot[]> {
+  if (!supabase) return [];
 
-        // Charger les availability_rules depuis leur table dédiée
-        const { data: rulesData, error: rulesError } = await supabase
-          .from('availability_rules')
-          .select('*')
-          .eq('is_active', true);
-        if (rulesError) throw rulesError;
-        if (!rulesData || rulesData.length === 0) return [];
+  // Charger tous les rendez-vous de la période
+  const { data: appointmentsData, error: appointmentsError } = await supabase
+    .from('appointments')
+    .select('start_time, end_time, status');
+    
+  if (appointmentsError) throw appointmentsError;
 
-        const { data: appointmentsData, error: appointmentsError } = await supabase
-          .from('appointments')
-          .select('*');
-        if (appointmentsError) throw appointmentsError;
+  // Convertir les RDV au format attendu par le service
+  const existingAppointments: ExistingAppointment[] = (appointmentsData || []).map(apt => ({
+    startTime: apt.start_time,
+    endTime: apt.end_time,
+    status: apt.status,
+  }));
 
-        const slots: AvailableSlot[] = [];
-        const start = new Date(startDate);
-        const end = new Date(endDate);
+  // Calculer les créneaux disponibles avec la nouvelle logique
+  const slots = calculateAvailableSlots(
+    startDate,
+    endDate,
+    existingAppointments,
+    appointmentType as AppointmentType | undefined
+  );
 
-        for (let date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
-          const dayOfWeek = date.getDay();
-          const dateStr = date.toISOString().split('T')[0];
+  // Convertir au format attendu par l'interface existante
+  return slots.map(slot => ({
+    date: slot.date,
+    startTime: slot.startTime,
+    endTime: slot.endTime,
+  }));
+},
 
-          const rules = rulesData.filter(rule => rule.day_of_week === dayOfWeek);
 
-          for (const rule of rules) {
-            const startHour = parseInt(rule.start_time.split(':')[0]);
-            const endHour = parseInt(rule.end_time.split(':')[0]);
-
-            for (let hour = startHour; hour < endHour; hour++) {
-              const slotStart = `${hour.toString().padStart(2, '0')}:00:00`;
-              const slotEnd = `${(hour + 1).toString().padStart(2, '0')}:00:00`;
-
-              const slotStartTime = new Date(`${dateStr}T${slotStart}`).toISOString();
-              const slotEndTime = new Date(`${dateStr}T${slotEnd}`).toISOString();
-
-              const isBooked = appointmentsData?.some(apt => {
-                const aptStart = new Date(apt.start_time);
-                const aptEnd = new Date(apt.end_time);
-                const currentSlotStart = new Date(slotStartTime);
-                const currentSlotEnd = new Date(slotEndTime);
-
-                return (
-                  apt.status !== 'cancelled' &&
-                  ((currentSlotStart >= aptStart && currentSlotStart < aptEnd) ||
-                    (currentSlotEnd > aptStart && currentSlotEnd <= aptEnd) ||
-                    (currentSlotStart <= aptStart && currentSlotEnd >= aptEnd))
-                );
-              });
-
-              if (!isBooked && new Date(slotStartTime) > new Date()) {
-                slots.push({
-                  date: dateStr,
-                  startTime: slotStart,
-                  endTime: slotEnd,
-                });
-              }
-            }
-          }
-        }
-
-        return slots;
-      },
       async create(appointment) {
         if (!supabase) throw new Error('Supabase not configured');
         const dbAppointment = appointmentToSnakeCase(appointment);
