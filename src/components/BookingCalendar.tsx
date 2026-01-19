@@ -1,9 +1,15 @@
 import { useState, useEffect } from 'react';
-import { Calendar, Clock, ChevronLeft, ChevronRight, CheckCircle } from 'lucide-react';
+import { Calendar, Clock, ChevronLeft, ChevronRight, CheckCircle, Info } from 'lucide-react';
 import { dataAdapter, type AvailableSlot } from '../lib/data';
 import { addDays, startOfWeek, format, parseISO } from '../lib/utils/date';
 import { sendNewAppointmentNotification } from '../lib/email';
-
+import {
+  APPOINTMENT_TYPES,
+  ONLINE_BOOKABLE_TYPES,
+  CALENDAR_COLORS,
+} from '../lib/appointment';
+import type { AppointmentType } from '../lib/appointment';
+import { getDayInfo } from '../lib/appointment/availabilityService';
 
 interface BookingCalendarProps {
   onBookingComplete?: () => void;
@@ -12,7 +18,7 @@ interface BookingCalendarProps {
 // Helper pour obtenir la timezone locale au format +01:00 ou +02:00
 function getLocalTimezoneOffset(dateString: string): string {
   const date = new Date(dateString);
-  const offset = -date.getTimezoneOffset(); // Minutes, inversé
+  const offset = -date.getTimezoneOffset();
   const hours = Math.floor(Math.abs(offset) / 60);
   const minutes = Math.abs(offset) % 60;
   const sign = offset >= 0 ? '+' : '-';
@@ -23,6 +29,7 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
   const [currentWeekStart, setCurrentWeekStart] = useState(() => startOfWeek(new Date()));
   const [availableSlots, setAvailableSlots] = useState<AvailableSlot[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<AvailableSlot | null>(null);
+  const [selectedType, setSelectedType] = useState<AppointmentType>('premier_rdv');
   const [loading, setLoading] = useState(true);
   const [bookingData, setBookingData] = useState({
     firstName: '',
@@ -38,18 +45,19 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
     date: string;
     startTime: string;
     endTime: string;
+    type: AppointmentType;
   } | null>(null);
 
   useEffect(() => {
     loadAvailableSlots();
-  }, [currentWeekStart]);
+  }, [currentWeekStart, selectedType]);
 
   const loadAvailableSlots = async () => {
     setLoading(true);
     try {
       const startDate = format(currentWeekStart, 'yyyy-MM-dd');
       const endDate = format(addDays(currentWeekStart, 13), 'yyyy-MM-dd');
-      const slots = await dataAdapter.appointments.getAvailableSlots(startDate, endDate);
+      const slots = await dataAdapter.appointments.getAvailableSlots(startDate, endDate, selectedType);
       setAvailableSlots(slots);
     } catch (error) {
       console.error('Error loading slots:', error);
@@ -71,7 +79,17 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
     setShowBookingForm(true);
   };
 
-    const handleBooking = async (e: React.FormEvent) => {
+  // Calculer l'heure de fin selon le type de RDV
+  const getEndTimeForType = (startTime: string, type: AppointmentType): string => {
+    const config = APPOINTMENT_TYPES[type];
+    const [hours, minutes] = startTime.split(':').map(Number);
+    const totalMinutes = hours * 60 + minutes + config.duration;
+    const endHours = Math.floor(totalMinutes / 60);
+    const endMins = totalMinutes % 60;
+    return `${String(endHours).padStart(2, '0')}:${String(endMins).padStart(2, '0')}:00`;
+  };
+
+  const handleBooking = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedSlot) return;
 
@@ -101,53 +119,52 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
         password: bookingData.password,
       });
 
-      // ✅ CORRECTION TIMEZONE: Ajouter la timezone locale explicitement
+      // Calculer l'heure de fin selon le type de RDV
+      const endTime = getEndTimeForType(selectedSlot.startTime, selectedType);
+      
       const baseStartTime = `${selectedSlot.date}T${selectedSlot.startTime}`;
-      const baseEndTime = `${selectedSlot.date}T${selectedSlot.endTime}`;
+      const baseEndTime = `${selectedSlot.date}T${endTime}`;
       const timezoneOffset = getLocalTimezoneOffset(baseStartTime);
       
-      // Retirer les secondes (:00) et ajouter la timezone
-      const startTime = `${baseStartTime.slice(0, -3)}${timezoneOffset}`;
-      const endTime = `${baseEndTime.slice(0, -3)}${timezoneOffset}`;
+      const startTimeWithTz = `${baseStartTime.slice(0, -3)}${timezoneOffset}`;
+      const endTimeWithTz = `${baseEndTime.slice(0, -3)}${timezoneOffset}`;
 
-      console.log('🕐 Création RDV avec timezone:', { startTime, endTime });
+      const typeConfig = APPOINTMENT_TYPES[selectedType];
+      const appointmentNote = `${typeConfig.label} - Durée : ${typeConfig.duration} minutes`;
 
       await dataAdapter.appointments.create({
         clientId: newUser.id,
-        startTime,
-        endTime,
+        startTime: startTimeWithTz,
+        endTime: endTimeWithTz,
         status: 'scheduled',
-        notes: 'Première consultation',
+        notes: appointmentNote,
       });
 
-      // ✅ NOUVEAU : Envoyer l'email de notification à l'admin
       const emailSent = await sendNewAppointmentNotification({
         clientFirstName: bookingData.firstName,
         clientLastName: bookingData.lastName,
         clientEmail: bookingData.email,
         clientPhone: bookingData.phone,
         appointmentDate: format(parseISO(selectedSlot.date), 'EEEE dd MMMM yyyy'),
-        appointmentTime: selectedSlot.startTime.slice(0, 5),  // ✅ CORRIGÉ
+        appointmentTime: selectedSlot.startTime.slice(0, 5),
       });
 
       if (!emailSent) {
-        console.warn('⚠️ Email de notification non envoyé (vérifier la configuration Resend)');
+        console.warn('Email de notification non envoyé');
       }
 
-      // Stocker les informations pour la modale de succès
       setConfirmedAppointment({
         date: selectedSlot.date,
         startTime: selectedSlot.startTime,
-        endTime: selectedSlot.endTime,
+        endTime: endTime,
+        type: selectedType,
       });
 
-      // Fermer le formulaire et afficher la modale de succès
       setShowBookingForm(false);
       setShowSuccessModal(true);
       setSelectedSlot(null);
       setBookingData({ firstName: '', lastName: '', email: '', phone: '', password: '', confirmPassword: '' });
       loadAvailableSlots();
-      // ✅ CORRECTION: onBookingComplete retiré d'ici
       
     } catch (error) {
       console.error('Error booking appointment:', error);
@@ -158,7 +175,7 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
   const handleCloseSuccessModal = () => {
     setShowSuccessModal(false);
     setConfirmedAppointment(null);
-    onBookingComplete?.(); // ✅ CORRECTION: Appel déplacé ici pour éviter démontage prématuré
+    onBookingComplete?.();
   };
 
   const getWeekDays = () => {
@@ -170,7 +187,14 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
     return availableSlots.filter(slot => slot.date === dateStr);
   };
 
+  // Récupérer les infos du jour pour l'affichage
+  const getDayDisplayInfo = (date: Date) => {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    return getDayInfo(dateStr);
+  };
+
   const weekDays = getWeekDays();
+  const selectedTypeConfig = APPOINTMENT_TYPES[selectedType];
 
   if (loading) {
     return (
@@ -182,6 +206,62 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
 
   return (
     <div className="space-y-6">
+      {/* Sélection du type de rendez-vous */}
+      <div className="bg-white rounded-lg border p-4">
+        <h4 className="font-title text-lg font-semibold text-text mb-3">
+          Type de rendez-vous
+        </h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {ONLINE_BOOKABLE_TYPES.map((typeId) => {
+            const config = APPOINTMENT_TYPES[typeId];
+            const isSelected = selectedType === typeId;
+            
+            return (
+              <button
+                key={typeId}
+                onClick={() => setSelectedType(typeId)}
+                className={`p-4 rounded-lg border-2 text-left transition-all ${
+                  isSelected
+                    ? 'border-[#8FA382] bg-[#8FA382]/10'
+                    : 'border-gray-200 hover:border-[#8FA382]/50'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-body font-semibold text-text">
+                    {config.label}
+                  </span>
+                  <span 
+                    className="px-2 py-1 rounded text-xs font-semibold"
+                    style={{ 
+                      backgroundColor: isSelected ? CALENDAR_COLORS.available : '#E5E7EB',
+                      color: isSelected ? 'white' : '#6B7280'
+                    }}
+                  >
+                    {config.duration} min
+                  </span>
+                </div>
+                <p className="font-body text-sm text-gray-600">
+                  {config.description}
+                </p>
+              </button>
+            );
+          })}
+        </div>
+        
+        {/* Info sur le bilan */}
+        <div 
+          className="mt-4 p-3 rounded-lg flex items-start gap-3"
+          style={{ backgroundColor: `${CALENDAR_COLORS.accent}20` }}
+        >
+          <Info className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: CALENDAR_COLORS.unavailable }} />
+          <p className="font-body text-sm text-gray-700">
+            <strong>Bilan complet :</strong> La prise de rendez-vous pour un bilan s'effectue 
+            lors de votre premier rendez-vous de rencontre au cabinet.
+          </p>
+        </div>
+      </div>
+
+      {/* Navigation du calendrier */}
       <div className="flex items-center justify-between">
         <button
           onClick={handlePreviousWeek}
@@ -200,27 +280,100 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
         </button>
       </div>
 
+      {/* Légende des couleurs */}
+      <div className="flex flex-wrap gap-4 text-sm font-body">
+        <div className="flex items-center gap-2">
+          <div 
+            className="w-4 h-4 rounded"
+            style={{ backgroundColor: CALENDAR_COLORS.available }}
+          />
+          <span>Disponible</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div 
+            className="w-4 h-4 rounded"
+            style={{ backgroundColor: CALENDAR_COLORS.unavailable }}
+          />
+          <span>Indisponible</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div 
+            className="w-4 h-4 rounded"
+            style={{ backgroundColor: CALENDAR_COLORS.accent }}
+          />
+          <span>Vacances/Férié (+ de créneaux)</span>
+        </div>
+      </div>
+
+      {/* Grille du calendrier */}
       <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
         {weekDays.map((day, index) => {
           const slots = getSlotsForDate(day);
+          const dayInfo = getDayDisplayInfo(day);
           const dayName = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'][day.getDay()];
+          
+          // Déterminer le style du header du jour
+          let headerBgColor: string = CALENDAR_COLORS.background;
+          let headerTextColor: string = '#374151';
+          
+          if (dayInfo.isBlocked) {
+            headerBgColor = CALENDAR_COLORS.unavailable;
+            headerTextColor = 'white';
+          } else if (dayInfo.isWorkingDay && (dayInfo.isHoliday || dayInfo.isVacation)) {
+            headerBgColor = CALENDAR_COLORS.accent;
+            headerTextColor = 'white';
+          } else if (dayInfo.isWorkingDay) {
+            headerBgColor = CALENDAR_COLORS.available;
+            headerTextColor = 'white';
+          }
 
           return (
-            <div key={index} className="border rounded-lg p-3">
-              <div className="text-center mb-3">
-                <p className="font-body text-sm text-gray-600">{dayName}</p>
-                <p className="font-body font-semibold text-text">{format(day, 'dd-MM')}</p>
+            <div 
+              key={index} 
+              className="border rounded-lg overflow-hidden"
+              style={{ borderColor: dayInfo.isBlocked ? CALENDAR_COLORS.unavailable : '#E5E7EB' }}
+            >
+              <div 
+                className="text-center p-3"
+                style={{ backgroundColor: headerBgColor, color: headerTextColor }}
+              >
+                <p className="font-body text-sm">{dayName}</p>
+                <p className="font-body font-semibold">{format(day, 'dd-MM')}</p>
+                {dayInfo.isHoliday && (
+                  <span className="text-xs opacity-80">Férié</span>
+                )}
+                {dayInfo.isVacation && !dayInfo.isHoliday && (
+                  <span className="text-xs opacity-80">Vacances</span>
+                )}
               </div>
 
-              <div className="space-y-2">
-                {slots.length === 0 ? (
-                  <p className="font-body text-xs text-gray-400 text-center">Indisponible</p>
+              <div className="p-3 space-y-2 min-h-[100px]">
+                {dayInfo.isBlocked ? (
+                  <p className="font-body text-xs text-center" style={{ color: CALENDAR_COLORS.unavailable }}>
+                    Fermé
+                  </p>
+                ) : slots.length === 0 ? (
+                  <p className="font-body text-xs text-gray-400 text-center">
+                    {dayInfo.isWorkingDay ? 'Complet' : 'Non travaillé'}
+                  </p>
                 ) : (
                   slots.map((slot, slotIndex) => (
                     <button
                       key={slotIndex}
                       onClick={() => handleSlotSelect(slot)}
-                      className="w-full px-2 py-1.5 bg-primary/10 hover:bg-primary hover:text-white text-primary rounded text-xs font-body transition"
+                      className="w-full px-2 py-1.5 rounded text-xs font-body transition"
+                      style={{
+                        backgroundColor: `${CALENDAR_COLORS.available}20`,
+                        color: CALENDAR_COLORS.available,
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = CALENDAR_COLORS.available;
+                        e.currentTarget.style.color = 'white';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = `${CALENDAR_COLORS.available}20`;
+                        e.currentTarget.style.color = CALENDAR_COLORS.available;
+                      }}
                     >
                       {slot.startTime.slice(0, 5)}
                     </button>
@@ -241,26 +394,40 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
             </h3>
             <div className="bg-blue-50 border-l-4 border-blue-500 p-3 mb-4">
               <p className="font-body text-sm text-blue-900">
-                <strong>Important :</strong> En réservant ce rendez-vous, un compte patient sera automatiquement créé pour vous. Vous pourrez ensuite vous connecter pour gérer vos rendez-vous et documents.
+                <strong>Important :</strong> En réservant ce rendez-vous, un compte patient sera automatiquement créé pour vous.
               </p>
             </div>
 
-            <div className="bg-primary/10 rounded-lg p-4 mb-6">
-              <div className="flex items-center space-x-2 text-primary mb-2">
+            <div 
+              className="rounded-lg p-4 mb-6"
+              style={{ backgroundColor: `${CALENDAR_COLORS.available}15` }}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <span 
+                  className="px-3 py-1 rounded-full text-sm font-semibold"
+                  style={{ 
+                    backgroundColor: CALENDAR_COLORS.available,
+                    color: 'white'
+                  }}
+                >
+                  {selectedTypeConfig.label}
+                </span>
+                <span className="font-body text-sm text-gray-600">
+                  {selectedTypeConfig.duration} minutes
+                </span>
+              </div>
+              <div className="flex items-center space-x-2 mb-2" style={{ color: CALENDAR_COLORS.available }}>
                 <Calendar className="w-4 h-4" />
                 <span className="font-body font-semibold">
-                  {format(parseISO(selectedSlot.date), 'EEEE dd MM yyyy')}
+                  {format(parseISO(selectedSlot.date), 'EEEE dd MMMM yyyy')}
                 </span>
               </div>
-              <div className="flex items-center space-x-2 text-primary">
+              <div className="flex items-center space-x-2" style={{ color: CALENDAR_COLORS.available }}>
                 <Clock className="w-4 h-4" />
                 <span className="font-body font-semibold">
-                  {selectedSlot.startTime.slice(0, 5)} - {selectedSlot.endTime.slice(0, 5)}
+                  {selectedSlot.startTime.slice(0, 5)} - {getEndTimeForType(selectedSlot.startTime, selectedType).slice(0, 5)}
                 </span>
               </div>
-              <p className="font-body text-sm text-gray-700 mt-2">
-                Durée : 1 heure
-              </p>
             </div>
 
             <form onSubmit={handleBooking} className="space-y-4">
@@ -358,7 +525,11 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-primary text-white rounded-lg font-body font-medium hover:bg-primary-dark transition"
+                  className="flex-1 px-4 py-2 rounded-lg font-body font-medium transition"
+                  style={{ 
+                    backgroundColor: CALENDAR_COLORS.available,
+                    color: 'white'
+                  }}
                 >
                   Créer mon compte et confirmer
                 </button>
@@ -372,37 +543,51 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
       {showSuccessModal && confirmedAppointment && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg p-8 max-w-md w-full shadow-2xl">
-            {/* Icône de succès */}
             <div className="flex justify-center mb-6">
-              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center">
-                <CheckCircle className="w-12 h-12 text-green-600" />
+              <div 
+                className="w-20 h-20 rounded-full flex items-center justify-center"
+                style={{ backgroundColor: `${CALENDAR_COLORS.available}20` }}
+              >
+                <CheckCircle className="w-12 h-12" style={{ color: CALENDAR_COLORS.available }} />
               </div>
             </div>
 
-            {/* Titre */}
             <h3 className="font-title text-2xl font-bold text-text text-center mb-2">
               Réservation confirmée !
             </h3>
 
-            {/* Message de succès */}
             <p className="font-body text-center text-gray-600 mb-6">
               Votre compte a été créé avec succès et votre rendez-vous est confirmé.
             </p>
 
-            {/* Détails du rendez-vous */}
-            <div className="bg-gradient-to-r from-primary/10 to-secondary/10 rounded-lg p-4 mb-6 border-l-4 border-primary">
+            <div 
+              className="rounded-lg p-4 mb-6 border-l-4"
+              style={{ 
+                backgroundColor: `${CALENDAR_COLORS.available}10`,
+                borderColor: CALENDAR_COLORS.available
+              }}
+            >
               <p className="font-body text-sm text-gray-600 mb-3">
                 <strong>Rendez-vous confirmé pour :</strong>
               </p>
               <div className="space-y-2">
+                <div 
+                  className="px-3 py-1 rounded-full text-sm font-semibold inline-block mb-2"
+                  style={{ 
+                    backgroundColor: CALENDAR_COLORS.available,
+                    color: 'white'
+                  }}
+                >
+                  {APPOINTMENT_TYPES[confirmedAppointment.type].label}
+                </div>
                 <div className="flex items-center space-x-3 text-text">
-                  <Calendar className="w-5 h-5 text-primary flex-shrink-0" />
+                  <Calendar className="w-5 h-5 flex-shrink-0" style={{ color: CALENDAR_COLORS.available }} />
                   <span className="font-body font-semibold">
-                    {format(parseISO(confirmedAppointment.date), 'EEEE dd MM yyyy')}
+                    {format(parseISO(confirmedAppointment.date), 'EEEE dd MMMM yyyy')}
                   </span>
                 </div>
                 <div className="flex items-center space-x-3 text-text">
-                  <Clock className="w-5 h-5 text-primary flex-shrink-0" />
+                  <Clock className="w-5 h-5 flex-shrink-0" style={{ color: CALENDAR_COLORS.available }} />
                   <span className="font-body font-semibold">
                     {confirmedAppointment.startTime.slice(0, 5)} - {confirmedAppointment.endTime.slice(0, 5)}
                   </span>
@@ -410,25 +595,27 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
               </div>
             </div>
 
-            {/* Informations de connexion */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
               <p className="font-body text-sm text-blue-900">
-                <strong>📧 Prochaine étape :</strong> Connectez-vous avec votre email et mot de passe pour accéder à votre espace client et gérer vos rendez-vous.
+                <strong>Prochaine étape :</strong> Connectez-vous avec votre email et mot de passe pour accéder à votre espace client.
               </p>
             </div>
 
-            {/* Bouton de fermeture */}
-            <div className="flex gap-3">
-              <button
-                onClick={handleCloseSuccessModal}
-                className="flex-1 px-6 py-3 bg-primary text-white rounded-lg font-body font-semibold hover:bg-primary/90 transition shadow-md hover:shadow-lg"
-              >
-                J'ai compris
-              </button>
-            </div>
+            <button
+              onClick={handleCloseSuccessModal}
+              className="w-full px-6 py-3 rounded-lg font-body font-semibold transition shadow-md hover:shadow-lg"
+              style={{ 
+                backgroundColor: CALENDAR_COLORS.available,
+                color: 'white'
+              }}
+            >
+              J'ai compris
+            </button>
           </div>
         </div>
       )}
     </div>
   );
 }
+
+
