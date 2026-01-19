@@ -7,7 +7,9 @@
  * elle-même appelle l'API Resend. Cela évite les problèmes CORS.
  */
 
-// src/lib/email.ts
+// ============================================================================
+// TYPES
+// ============================================================================
 
 export interface NewAppointmentEmailData {
   clientFirstName: string
@@ -16,12 +18,31 @@ export interface NewAppointmentEmailData {
   clientPhone?: string
   appointmentDate: string
   appointmentTime: string
-  motif?: string
+  appointmentType?: string
+  appointmentDuration?: number
 }
 
-export async function sendNewAppointmentNotification(
-  data: NewAppointmentEmailData
-): Promise<boolean> {
+export interface ContactFormEmailData {
+  name: string
+  email: string
+  phone?: string
+  message: string
+}
+
+export interface AppointmentCancelledEmailData {
+  clientFirstName: string
+  clientLastName: string
+  clientEmail: string
+  appointmentDate: string
+  appointmentTime: string
+  cancelledBy: 'client' | 'admin'
+}
+
+// ============================================================================
+// FONCTION UTILITAIRE
+// ============================================================================
+
+async function callEmailFunction(data: Record<string, unknown>): Promise<boolean> {
   try {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
     const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -35,9 +56,8 @@ export async function sendNewAppointmentNotification(
 
     console.log('📧 Envoi de l\'email via Supabase Edge Function...')
 
-    // ✅ AJOUT : Timeout de 10 secondes
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 10000)
+    const timeoutId = setTimeout(() => controller.abort(), 15000) // 15s timeout
 
     try {
       const response = await fetch(functionUrl, {
@@ -47,12 +67,11 @@ export async function sendNewAppointmentNotification(
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(data),
-        signal: controller.signal, // ← AJOUT
+        signal: controller.signal,
       })
 
-      clearTimeout(timeoutId) // ← AJOUT
+      clearTimeout(timeoutId)
 
-      // ✅ AMÉLIORATION : Vérifier le statut AVANT de parser le JSON
       if (!response.ok) {
         let errorMessage = `HTTP ${response.status}`
         try {
@@ -66,7 +85,7 @@ export async function sendNewAppointmentNotification(
       }
 
       const result = await response.json()
-      console.log('✅ Email envoyé avec succès:', result)
+      console.log('✅ Email(s) envoyé(s) avec succès:', result)
       return true
 
     } catch (fetchError) {
@@ -77,11 +96,57 @@ export async function sendNewAppointmentNotification(
         return false
       }
       
-      throw fetchError // Relancer l'erreur pour le catch externe
+      throw fetchError
     }
 
   } catch (error) {
     console.error('❌ Erreur lors de l\'envoi de l\'email:', error)
     return false
   }
+}
+
+// ============================================================================
+// FONCTIONS PUBLIQUES
+// ============================================================================
+
+/**
+ * Envoie les notifications de nouveau rendez-vous
+ * - Email à l'admin pour l'informer du nouveau RDV
+ * - Email au client pour confirmer son RDV
+ */
+export async function sendNewAppointmentNotification(
+  data: NewAppointmentEmailData
+): Promise<boolean> {
+  return callEmailFunction({
+    type: 'new_appointment',
+    ...data,
+  })
+}
+
+/**
+ * Envoie le message du formulaire de contact
+ * - Email à l'admin avec le message
+ * - Email au visiteur pour confirmer la réception
+ */
+export async function sendContactFormMessage(
+  data: ContactFormEmailData
+): Promise<boolean> {
+  return callEmailFunction({
+    type: 'contact_form',
+    ...data,
+  })
+}
+
+/**
+ * Envoie les notifications d'annulation de rendez-vous
+ * - Email à l'admin pour l'informer de l'annulation
+ * - Email au client pour confirmer l'annulation
+ */
+export async function sendAppointmentCancelledNotification(
+  data: AppointmentCancelledEmailData
+): Promise<boolean> {
+  return callEmailFunction({
+    type: 'appointment_cancelled',
+    ...data,
+  })
 }

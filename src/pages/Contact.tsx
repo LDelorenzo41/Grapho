@@ -1,10 +1,53 @@
 import { useState } from 'react';
-import { Mail, Phone, MapPin, Calendar, Clock, Info } from 'lucide-react';
+import { Mail, Phone, MapPin, Calendar, Clock, Info, Send, CheckCircle, AlertCircle } from 'lucide-react';
 import { BookingCalendar } from '../components/BookingCalendar';
 import { CALENDAR_COLORS } from '../lib/appointment';
+import { sendContactFormMessage } from '../lib/email';
 
 export function Contact() {
   const [showBooking, setShowBooking] = useState(false);
+  
+  // États du formulaire de contact
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    message: '',
+  });
+  const [formStatus, setFormStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
+  const [formError, setFormError] = useState('');
+
+  const handleSubmitContact = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormStatus('sending');
+    setFormError('');
+
+    try {
+      const success = await sendContactFormMessage({
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone || undefined,
+        message: formData.message,
+      });
+
+      if (success) {
+        setFormStatus('success');
+        setFormData({ name: '', email: '', phone: '', message: '' });
+      } else {
+        setFormStatus('error');
+        setFormError('Une erreur est survenue lors de l\'envoi. Veuillez réessayer.');
+      }
+    } catch (error) {
+      console.error('Erreur envoi formulaire:', error);
+      setFormStatus('error');
+      setFormError('Une erreur est survenue. Veuillez réessayer ou nous contacter par téléphone.');
+    }
+  };
+
+  const resetForm = () => {
+    setFormStatus('idle');
+    setFormError('');
+  };
 
   return (
     <div>
@@ -63,8 +106,8 @@ export function Contact() {
                     </div>
                     <div>
                       <p className="font-body text-sm text-gray-600">Email</p>
-                      <a href="mailto:contact@graphotherapie.fr" className="font-body text-text hover:text-primary transition">
-                        contact@graphotherapie.fr
+                      <a href="mailto:philippine.cornet@gmail.com" className="font-body text-text hover:text-primary transition">
+                        philippine.cornet@gmail.com
                       </a>
                     </div>
                   </div>
@@ -88,15 +131,21 @@ export function Contact() {
                     <div>
                       <p className="font-body text-sm text-gray-600">Adresse</p>
                       <p className="font-body text-text">
-                        123 Avenue de la République<br />
-                        75000 Paris
-                      </p>
+  Pôle Val d’Amboise<br />
+  274 rue du Château d’Eau<br />
+  Ilot n°4 – Zone de la Boitardière<br />
+  37530 Chargé<br />
+  <span className="text-sm text-gray-600">
+    Accès PMR, parking gratuit sur place, salle d’attente.
+  </span>
+</p>
+
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Vignette Horaires de consultation - MISE À JOUR */}
+              {/* Vignette Horaires de consultation */}
               <div 
                 className="rounded-lg p-6"
                 style={{ backgroundColor: `${CALENDAR_COLORS.available}15` }}
@@ -181,63 +230,138 @@ export function Contact() {
               </div>
             </div>
 
+            {/* Formulaire de contact */}
             <div className="bg-white rounded-lg shadow-sm border p-6">
               <h2 className="font-title text-2xl font-bold text-text mb-6">Formulaire de contact</h2>
-              <form className="space-y-4">
-                <div>
-                  <label htmlFor="name" className="block font-body text-sm font-medium text-text mb-2">
-                    Nom complet *
-                  </label>
-                  <input
-                    type="text"
-                    id="name"
-                    required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent font-body"
-                  />
+              
+              {/* Message de succès */}
+              {formStatus === 'success' && (
+                <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <CheckCircle className="w-6 h-6 text-green-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h3 className="font-body font-semibold text-green-800 mb-1">
+                        Message envoyé avec succès !
+                      </h3>
+                      <p className="font-body text-sm text-green-700">
+                        Nous avons bien reçu votre message et vous répondrons dans les plus brefs délais.
+                        Un email de confirmation vous a été envoyé.
+                      </p>
+                      <button
+                        onClick={resetForm}
+                        className="mt-3 text-sm font-body font-medium text-green-700 hover:text-green-800 underline"
+                      >
+                        Envoyer un autre message
+                      </button>
+                    </div>
+                  </div>
                 </div>
+              )}
 
-                <div>
-                  <label htmlFor="email" className="block font-body text-sm font-medium text-text mb-2">
-                    Email *
-                  </label>
-                  <input
-                    type="email"
-                    id="email"
-                    required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent font-body"
-                  />
+              {/* Message d'erreur */}
+              {formStatus === 'error' && (
+                <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h3 className="font-body font-semibold text-red-800 mb-1">
+                        Erreur lors de l'envoi
+                      </h3>
+                      <p className="font-body text-sm text-red-700">
+                        {formError}
+                      </p>
+                      <button
+                        onClick={resetForm}
+                        className="mt-3 text-sm font-body font-medium text-red-700 hover:text-red-800 underline"
+                      >
+                        Réessayer
+                      </button>
+                    </div>
+                  </div>
                 </div>
+              )}
 
-                <div>
-                  <label htmlFor="phone" className="block font-body text-sm font-medium text-text mb-2">
-                    Téléphone
-                  </label>
-                  <input
-                    type="tel"
-                    id="phone"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent font-body"
-                  />
-                </div>
+              {/* Formulaire */}
+              {formStatus !== 'success' && (
+                <form onSubmit={handleSubmitContact} className="space-y-4">
+                  <div>
+                    <label htmlFor="name" className="block font-body text-sm font-medium text-text mb-2">
+                      Nom complet *
+                    </label>
+                    <input
+                      type="text"
+                      id="name"
+                      required
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      disabled={formStatus === 'sending'}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent font-body disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    />
+                  </div>
 
-                <div>
-                  <label htmlFor="message" className="block font-body text-sm font-medium text-text mb-2">
-                    Message *
-                  </label>
-                  <textarea
-                    id="message"
-                    rows={5}
-                    required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent font-body"
-                  ></textarea>
-                </div>
+                  <div>
+                    <label htmlFor="email" className="block font-body text-sm font-medium text-text mb-2">
+                      Email *
+                    </label>
+                    <input
+                      type="email"
+                      id="email"
+                      required
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      disabled={formStatus === 'sending'}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent font-body disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    />
+                  </div>
 
-                <button
-                  type="submit"
-                  className="w-full px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition font-body font-semibold"
-                >
-                  Envoyer le message
-                </button>
-              </form>
+                  <div>
+                    <label htmlFor="phone" className="block font-body text-sm font-medium text-text mb-2">
+                      Téléphone
+                    </label>
+                    <input
+                      type="tel"
+                      id="phone"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      disabled={formStatus === 'sending'}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent font-body disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="message" className="block font-body text-sm font-medium text-text mb-2">
+                      Message *
+                    </label>
+                    <textarea
+                      id="message"
+                      rows={5}
+                      required
+                      value={formData.message}
+                      onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                      disabled={formStatus === 'sending'}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent font-body disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    ></textarea>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={formStatus === 'sending'}
+                    className="w-full px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition font-body font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {formStatus === 'sending' ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>Envoi en cours...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-5 h-5" />
+                        <span>Envoyer le message</span>
+                      </>
+                    )}
+                  </button>
+                </form>
+              )}
             </div>
           </div>
         </div>
@@ -245,5 +369,6 @@ export function Contact() {
     </div>
   );
 }
+
 
 
