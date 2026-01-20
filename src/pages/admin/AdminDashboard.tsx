@@ -205,7 +205,7 @@ export function AdminDashboard() {
       `Lien de connexion : [VOTRE_URL_DE_CONNEXION]\n\n` +
       `N'hésitez pas à me contacter si vous avez la moindre question.\n\n` +
       `Cordialement,\n` +
-      `Votre graphothérapeute`;
+      `Philippine Cornet`;
 
     const mailtoLink = `mailto:${client.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     window.open(mailtoLink, '_blank');
@@ -458,14 +458,14 @@ export function AdminDashboard() {
         `🕐 Heure : ${formattedTime}\n\n` +
         `N'hésitez pas à me contacter si vous avez des questions.\n\n` +
         `Cordialement,\n` +
-        `Votre graphothérapeute`;
+        `Philippine Cornet`;
     } else {
       subject = `Annulation de votre rendez-vous - ${formattedDate}`;
       body = `Bonjour ${client.firstName},\n\n` +
         `Je vous informe que votre rendez-vous de graphothérapie prévu le ${formattedDate} à ${formattedTime} est annulé.\n\n` +
         `N'hésitez pas à me contacter pour convenir d'un nouveau créneau.\n\n` +
         `Cordialement,\n` +
-        `Votre graphothérapeute`;
+        `Philippine Cornet`;
     }
 
     const mailtoLink = `mailto:${client.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;

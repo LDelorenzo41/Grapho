@@ -35,13 +35,13 @@ export function Home() {
                 </h2>
                 <div className="font-body text-gray-700 space-y-4 leading-relaxed">
                   <p>
-                    Philippine Cornet, graphothérapeute diplômée, met son sens de l'écoute et son expérience d'enseignante au service de ceux qui souhaitent retrouver le plaisir d'écrire.
+                    Je suis Philippine Cornet, graphothérapeute diplômée. Je mets mon sens de l’écoute et mon expérience d’enseignante au service de celles et ceux qui souhaitent retrouver le plaisir d’écrire.
                   </p>
                   <p>
-                    Ancienne professeure d'éducation musicale, elle allie rigueur, douceur et pédagogie pour accompagner chaque enfant — ou adulte — à développer une écriture fluide, lisible et apaisée.
+                    Ancienne professeure d’éducation musicale, j’allie rigueur, douceur et pédagogie pour accompagner chaque enfant — ou adulte — à développer une écriture fluide, lisible et apaisée.
                   </p>
                   <p>
-                    Son approche, à la fois bienveillante et structurée, repose sur la confiance, la progression et la valorisation des réussites.
+                    Mon approche, à la fois bienveillante et structurée, repose sur la confiance, la progression et la valorisation des réussites.
                   </p>
                 </div>
                 
