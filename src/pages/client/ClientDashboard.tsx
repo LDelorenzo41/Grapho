@@ -46,15 +46,16 @@ export function ClientDashboard() {
     }
   };
 
+  // CORRECTION : Inclure aussi les RDV 'confirmed' pour le prochain RDV
   const nextAppointment = appointments
-    .filter(apt => apt.status === 'scheduled' && new Date(apt.startTime) > new Date())
+    .filter(apt => (apt.status === 'scheduled' || apt.status === 'confirmed') && new Date(apt.startTime) > new Date())
     .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())[0];
 
   const unreadMessages = messages.filter(m => !m.read && m.recipientId === user?.id);
 
-  // Compter uniquement les rendez-vous prévus (scheduled) et non annulés
+  // CORRECTION : Inclure aussi les RDV 'confirmed' dans le compteur
   const scheduledAppointmentsCount = appointments.filter(apt => 
-    apt.status === 'scheduled' || apt.status === 'completed'
+    apt.status === 'scheduled' || apt.status === 'confirmed' || apt.status === 'completed'
   ).length;
 
   if (loading) {
@@ -153,4 +154,5 @@ export function ClientDashboard() {
     </div>
   );
 }
+
 

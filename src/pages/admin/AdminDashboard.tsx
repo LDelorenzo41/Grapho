@@ -417,60 +417,80 @@ export function AdminDashboard() {
     setShowDeleteModal(true);
   };
 
-  const confirmDeleteAppointment = async () => {
-    if (!appointmentToDelete) return;
+const confirmDeleteAppointment = async () => {
+  if (!appointmentToDelete) return;
 
-    try {
-      await dataAdapter.appointments.delete(appointmentToDelete.id);
-      setShowDeleteModal(false);
-      setShowEditModal(false);
-      setAppointmentToDelete(null);
-      setSelectedAppointment(null);
-      await loadData();
-      alert('Rendez-vous supprimé avec succès !');
-    } catch (error) {
-      console.error('Error deleting appointment:', error);
-      alert('Erreur lors de la suppression du rendez-vous');
+  // Récupérer le client AVANT de supprimer (pour l'email)
+  const client = clients.find(c => c.id === appointmentToDelete.clientId);
+  const appointmentCopy = { ...appointmentToDelete };
+
+  try {
+    await dataAdapter.appointments.delete(appointmentToDelete.id);
+    setShowDeleteModal(false);
+    setShowEditModal(false);
+    setAppointmentToDelete(null);
+    setSelectedAppointment(null);
+    await loadData();
+    
+    // Ouvrir le client mail pour prévenir le client
+    if (client) {
+      openEmailClient(client, appointmentCopy, 'deletion');
     }
-  };
+    
+    alert('Rendez-vous supprimé avec succès ! Un email pré-rempli s\'est ouvert pour prévenir le client.');
+  } catch (error) {
+    console.error('Error deleting appointment:', error);
+    alert('Erreur lors de la suppression du rendez-vous');
+  }
+};
 
-  const openEmailClient = (client: User, appointment: Appointment, emailType: 'confirmation' | 'cancellation') => {
-    const startDate = new Date(appointment.startTime);
-    const formattedDate = startDate.toLocaleDateString('fr-FR', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    });
-    const formattedTime = startDate.toLocaleTimeString('fr-FR', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
 
-    let subject = '';
-    let body = '';
+const openEmailClient = (client: User, appointment: Appointment, emailType: 'confirmation' | 'cancellation' | 'deletion') => {
+  const startDate = new Date(appointment.startTime);
+  const formattedDate = startDate.toLocaleDateString('fr-FR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  });
+  const formattedTime = startDate.toLocaleTimeString('fr-FR', {
+    hour: '2-digit',
+    minute: '2-digit'
+  });
 
-    if (emailType === 'confirmation') {
-      subject = `Confirmation de votre rendez-vous - ${formattedDate}`;
-      body = `Bonjour ${client.firstName},\n\n` +
-        `Je vous confirme votre rendez-vous de graphothérapie :\n\n` +
-        `📅 Date : ${formattedDate}\n` +
-        `🕐 Heure : ${formattedTime}\n\n` +
-        `N'hésitez pas à me contacter si vous avez des questions.\n\n` +
-        `Cordialement,\n` +
-        `Philippine Cornet`;
-    } else {
-      subject = `Annulation de votre rendez-vous - ${formattedDate}`;
-      body = `Bonjour ${client.firstName},\n\n` +
-        `Je vous informe que votre rendez-vous de graphothérapie prévu le ${formattedDate} à ${formattedTime} est annulé.\n\n` +
-        `N'hésitez pas à me contacter pour convenir d'un nouveau créneau.\n\n` +
-        `Cordialement,\n` +
-        `Philippine Cornet`;
-    }
+  let subject = '';
+  let body = '';
 
-    const mailtoLink = `mailto:${client.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.open(mailtoLink, '_blank');
-  };
+  if (emailType === 'confirmation') {
+    subject = `Confirmation de votre rendez-vous - ${formattedDate}`;
+    body = `Bonjour ${client.firstName},\n\n` +
+      `Je vous confirme votre rendez-vous de graphothérapie :\n\n` +
+      `📅 Date : ${formattedDate}\n` +
+      `🕐 Heure : ${formattedTime}\n\n` +
+      `N'hésitez pas à me contacter si vous avez des questions.\n\n` +
+      `Cordialement,\n` +
+      `Philippine Cornet`;
+  } else if (emailType === 'cancellation') {
+    subject = `Annulation de votre rendez-vous - ${formattedDate}`;
+    body = `Bonjour ${client.firstName},\n\n` +
+      `Je vous informe que votre rendez-vous de graphothérapie prévu le ${formattedDate} à ${formattedTime} est annulé.\n\n` +
+      `N'hésitez pas à me contacter pour convenir d'un nouveau créneau.\n\n` +
+      `Cordialement,\n` +
+      `Philippine Cornet`;
+  } else if (emailType === 'deletion') {
+    subject = `Annulation de votre rendez-vous - ${formattedDate}`;
+    body = `Bonjour ${client.firstName},\n\n` +
+      `Je suis au regret de vous informer que votre rendez-vous de graphothérapie initialement prévu le ${formattedDate} à ${formattedTime} doit être annulé.\n\n` +
+      `Je vous prie de m'excuser pour ce désagrément.\n\n` +
+      `N'hésitez pas à me contacter pour convenir d'un nouveau créneau qui vous conviendrait.\n\n` +
+      `Cordialement,\n` +
+      `Philippine Cornet`;
+  }
+
+  const mailtoLink = `mailto:${client.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  window.open(mailtoLink, '_blank');
+};
+
 
   const openEditModal = (apt: Appointment) => {
     setSelectedAppointment(apt);

@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Calendar, Clock, ChevronLeft, ChevronRight, CheckCircle, Info } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Calendar, Clock, ChevronLeft, ChevronRight, CheckCircle, Info, LogIn, User } from 'lucide-react';
 import { dataAdapter, type AvailableSlot } from '../lib/data';
 import { addDays, startOfWeek, format, parseISO } from '../lib/utils/date';
 import { sendNewAppointmentNotification } from '../lib/email';
+import { useAuth } from '../contexts/AuthContext';
 import {
   APPOINTMENT_TYPES,
   ONLINE_BOOKABLE_TYPES,
@@ -26,6 +28,9 @@ function getLocalTimezoneOffset(dateString: string): string {
 }
 
 export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  
   const [currentWeekStart, setCurrentWeekStart] = useState(() => startOfWeek(new Date()));
   const [availableSlots, setAvailableSlots] = useState<AvailableSlot[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<AvailableSlot | null>(null);
@@ -41,12 +46,17 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
   });
   const [showBookingForm, setShowBookingForm] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [confirmedAppointment, setConfirmedAppointment] = useState<{
     date: string;
     startTime: string;
     endTime: string;
     type: AppointmentType;
   } | null>(null);
+
+  // Vérifier si le type sélectionné nécessite d'être connecté
+  const requiresLogin = selectedType === 'remediation';
+  const isLoggedIn = !!user;
 
   useEffect(() => {
     loadAvailableSlots();
@@ -76,7 +86,13 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
 
   const handleSlotSelect = (slot: AvailableSlot) => {
     setSelectedSlot(slot);
-    setShowBookingForm(true);
+    
+    // Si séance de remédiation et pas connecté, afficher le prompt de connexion
+    if (requiresLogin && !isLoggedIn) {
+      setShowLoginPrompt(true);
+    } else {
+      setShowBookingForm(true);
+    }
   };
 
   // Calculer l'heure de fin selon le type de RDV
@@ -89,7 +105,67 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
     return `${String(endHours).padStart(2, '0')}:${String(endMins).padStart(2, '0')}:00`;
   };
 
-  const handleBooking = async (e: React.FormEvent) => {
+  // Réservation pour utilisateur connecté (séance de remédiation)
+  const handleBookingLoggedIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedSlot || !user) return;
+
+    try {
+      const endTime = getEndTimeForType(selectedSlot.startTime, selectedType);
+      
+      const baseStartTime = `${selectedSlot.date}T${selectedSlot.startTime}`;
+      const baseEndTime = `${selectedSlot.date}T${endTime}`;
+      const timezoneOffset = getLocalTimezoneOffset(baseStartTime);
+      
+      const startTimeWithTz = `${baseStartTime.slice(0, -3)}${timezoneOffset}`;
+      const endTimeWithTz = `${baseEndTime.slice(0, -3)}${timezoneOffset}`;
+
+      const typeConfig = APPOINTMENT_TYPES[selectedType];
+      const appointmentNote = `${typeConfig.label} - Durée : ${typeConfig.duration} minutes`;
+
+      await dataAdapter.appointments.create({
+        clientId: user.id,
+        startTime: startTimeWithTz,
+        endTime: endTimeWithTz,
+        status: 'scheduled',
+        notes: appointmentNote,
+      });
+
+      const emailSent = await sendNewAppointmentNotification({
+        clientFirstName: user.firstName,
+        clientLastName: user.lastName,
+        clientEmail: user.email,
+        clientPhone: user.phone || '',
+        appointmentDate: format(parseISO(selectedSlot.date), 'EEEE dd MMMM yyyy'),
+        appointmentTime: selectedSlot.startTime.slice(0, 5),
+        appointmentType: typeConfig.label,
+        appointmentDuration: typeConfig.duration,
+      });
+
+      if (!emailSent) {
+        console.warn('Email de notification non envoyé');
+      }
+
+      setConfirmedAppointment({
+        date: selectedSlot.date,
+        startTime: selectedSlot.startTime,
+        endTime: endTime,
+        type: selectedType,
+      });
+
+      setShowBookingForm(false);
+      setShowSuccessModal(true);
+      setSelectedSlot(null);
+      loadAvailableSlots();
+      
+    } catch (error) {
+      console.error('Error booking appointment:', error);
+      alert('Erreur lors de la réservation. Veuillez réessayer.');
+    }
+  };
+
+  // Réservation avec création de compte (premier RDV)
+  const handleBookingNewUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedSlot) return;
 
@@ -181,6 +257,11 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
     onBookingComplete?.();
   };
 
+  const handleGoToLogin = () => {
+    setShowLoginPrompt(false);
+    navigate('/connexion');
+  };
+
   const getWeekDays = () => {
     return Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
   };
@@ -218,6 +299,7 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
           {ONLINE_BOOKABLE_TYPES.map((typeId) => {
             const config = APPOINTMENT_TYPES[typeId];
             const isSelected = selectedType === typeId;
+            const needsLogin = typeId === 'remediation';
             
             return (
               <button
@@ -246,6 +328,12 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
                 <p className="font-body text-sm text-gray-600">
                   {config.description}
                 </p>
+                {needsLogin && (
+                  <div className="mt-2 flex items-center gap-1 text-xs text-amber-700">
+                    <LogIn className="w-3 h-3" />
+                    <span>Réservé aux clients existants</span>
+                  </div>
+                )}
               </button>
             );
           })}
@@ -262,6 +350,38 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
             lors de votre premier rendez-vous de rencontre au cabinet.
           </p>
         </div>
+
+        {/* Info si séance de remédiation sélectionnée */}
+        {requiresLogin && (
+          <div 
+            className="mt-4 p-3 rounded-lg flex items-start gap-3"
+            style={{ backgroundColor: isLoggedIn ? '#ECFDF5' : '#FEF3C7' }}
+          >
+            {isLoggedIn ? (
+              <>
+                <User className="w-5 h-5 flex-shrink-0 mt-0.5 text-green-600" />
+                <p className="font-body text-sm text-green-800">
+                  <strong>Connecté en tant que {user?.firstName} {user?.lastName}</strong> - 
+                  Vous pouvez réserver une séance de remédiation.
+                </p>
+              </>
+            ) : (
+              <>
+                <LogIn className="w-5 h-5 flex-shrink-0 mt-0.5 text-amber-600" />
+                <p className="font-body text-sm text-amber-800">
+                  <strong>Connexion requise :</strong> La séance de remédiation est réservée aux clients 
+                  ayant déjà eu un premier rendez-vous. 
+                  <button 
+                    onClick={() => navigate('/connexion')}
+                    className="ml-1 underline hover:no-underline font-semibold"
+                  >
+                    Se connecter
+                  </button>
+                </p>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Navigation du calendrier */}
@@ -388,6 +508,80 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
         })}
       </div>
 
+      {/* Modale de prompt de connexion (pour séance de remédiation) */}
+      {showLoginPrompt && selectedSlot && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <div className="flex justify-center mb-6">
+              <div 
+                className="w-16 h-16 rounded-full flex items-center justify-center"
+                style={{ backgroundColor: '#FEF3C7' }}
+              >
+                <LogIn className="w-8 h-8 text-amber-600" />
+              </div>
+            </div>
+
+            <h3 className="font-title text-2xl font-bold text-text text-center mb-2">
+              Connexion requise
+            </h3>
+
+            <p className="font-body text-center text-gray-600 mb-6">
+              Pour réserver une <strong>séance de remédiation</strong>, vous devez être connecté 
+              à votre espace client. Ce type de rendez-vous est réservé aux patients ayant déjà 
+              eu un premier rendez-vous.
+            </p>
+
+            <div 
+              className="rounded-lg p-4 mb-6"
+              style={{ backgroundColor: `${CALENDAR_COLORS.available}15` }}
+            >
+              <p className="font-body text-sm text-gray-600 mb-2">
+                <strong>Créneau sélectionné :</strong>
+              </p>
+              <div className="flex items-center space-x-2" style={{ color: CALENDAR_COLORS.available }}>
+                <Calendar className="w-4 h-4" />
+                <span className="font-body font-semibold">
+                  {format(parseISO(selectedSlot.date), 'EEEE dd MMMM yyyy')}
+                </span>
+              </div>
+              <div className="flex items-center space-x-2 mt-1" style={{ color: CALENDAR_COLORS.available }}>
+                <Clock className="w-4 h-4" />
+                <span className="font-body font-semibold">
+                  {selectedSlot.startTime.slice(0, 5)}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowLoginPrompt(false);
+                  setSelectedSlot(null);
+                }}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg font-body font-medium text-gray-700 hover:bg-gray-50 transition"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleGoToLogin}
+                className="flex-1 px-4 py-2 rounded-lg font-body font-medium transition flex items-center justify-center gap-2"
+                style={{ 
+                  backgroundColor: CALENDAR_COLORS.available,
+                  color: 'white'
+                }}
+              >
+                <LogIn className="w-4 h-4" />
+                Se connecter
+              </button>
+            </div>
+
+            <p className="font-body text-xs text-center text-gray-500 mt-4">
+              Nouveau patient ? Réservez d'abord un <strong>Premier rendez-vous</strong> pour créer votre compte.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Modale de formulaire de réservation */}
       {showBookingForm && selectedSlot && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -395,11 +589,21 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
             <h3 className="font-title text-2xl font-bold text-text mb-2">
               Confirmer votre rendez-vous
             </h3>
-            <div className="bg-blue-50 border-l-4 border-blue-500 p-3 mb-4">
-              <p className="font-body text-sm text-blue-900">
-                <strong>Important :</strong> En réservant ce rendez-vous, un compte patient sera automatiquement créé pour vous.
-              </p>
-            </div>
+            
+            {/* Message différent selon si connecté ou non */}
+            {isLoggedIn ? (
+              <div className="bg-green-50 border-l-4 border-green-500 p-3 mb-4">
+                <p className="font-body text-sm text-green-900">
+                  <strong>Connecté en tant que :</strong> {user?.firstName} {user?.lastName}
+                </p>
+              </div>
+            ) : (
+              <div className="bg-blue-50 border-l-4 border-blue-500 p-3 mb-4">
+                <p className="font-body text-sm text-blue-900">
+                  <strong>Important :</strong> En réservant ce rendez-vous, un compte patient sera automatiquement créé pour vous.
+                </p>
+              </div>
+            )}
 
             <div 
               className="rounded-lg p-4 mb-6"
@@ -433,111 +637,150 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
               </div>
             </div>
 
-            <form onSubmit={handleBooking} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            {/* Formulaire différent selon si connecté ou non */}
+            {isLoggedIn ? (
+              // Formulaire simplifié pour utilisateur connecté
+              <form onSubmit={handleBookingLoggedIn} className="space-y-4">
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <p className="font-body text-sm text-gray-600 mb-2">Vos informations :</p>
+                  <p className="font-body font-semibold text-text">{user?.firstName} {user?.lastName}</p>
+                  <p className="font-body text-sm text-gray-600">{user?.email}</p>
+                  {user?.phone && (
+                    <p className="font-body text-sm text-gray-600">{user?.phone}</p>
+                  )}
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowBookingForm(false);
+                      setSelectedSlot(null);
+                    }}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg font-body font-medium text-gray-700 hover:bg-gray-50 transition"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 px-4 py-2 rounded-lg font-body font-medium transition"
+                    style={{ 
+                      backgroundColor: CALENDAR_COLORS.available,
+                      color: 'white'
+                    }}
+                  >
+                    Confirmer le rendez-vous
+                  </button>
+                </div>
+              </form>
+            ) : (
+              // Formulaire complet pour nouveau patient
+              <form onSubmit={handleBookingNewUser} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block font-body text-sm font-medium text-text mb-2">
+                      Prénom *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={bookingData.firstName}
+                      onChange={(e) => setBookingData({ ...bookingData, firstName: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent font-body"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-body text-sm font-medium text-text mb-2">
+                      Nom *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={bookingData.lastName}
+                      onChange={(e) => setBookingData({ ...bookingData, lastName: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent font-body"
+                    />
+                  </div>
+                </div>
+
                 <div>
                   <label className="block font-body text-sm font-medium text-text mb-2">
-                    Prénom *
+                    Email *
                   </label>
                   <input
-                    type="text"
+                    type="email"
                     required
-                    value={bookingData.firstName}
-                    onChange={(e) => setBookingData({ ...bookingData, firstName: e.target.value })}
+                    value={bookingData.email}
+                    onChange={(e) => setBookingData({ ...bookingData, email: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent font-body"
                   />
                 </div>
+
                 <div>
                   <label className="block font-body text-sm font-medium text-text mb-2">
-                    Nom *
+                    Téléphone *
                   </label>
                   <input
-                    type="text"
+                    type="tel"
                     required
-                    value={bookingData.lastName}
-                    onChange={(e) => setBookingData({ ...bookingData, lastName: e.target.value })}
+                    value={bookingData.phone}
+                    onChange={(e) => setBookingData({ ...bookingData, phone: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent font-body"
                   />
                 </div>
-              </div>
 
-              <div>
-                <label className="block font-body text-sm font-medium text-text mb-2">
-                  Email *
-                </label>
-                <input
-                  type="email"
-                  required
-                  value={bookingData.email}
-                  onChange={(e) => setBookingData({ ...bookingData, email: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent font-body"
-                />
-              </div>
+                <div>
+                  <label className="block font-body text-sm font-medium text-text mb-2">
+                    Mot de passe * (min. 6 caractères)
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    value={bookingData.password}
+                    onChange={(e) => setBookingData({ ...bookingData, password: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent font-body"
+                  />
+                </div>
 
-              <div>
-                <label className="block font-body text-sm font-medium text-text mb-2">
-                  Téléphone *
-                </label>
-                <input
-                  type="tel"
-                  required
-                  value={bookingData.phone}
-                  onChange={(e) => setBookingData({ ...bookingData, phone: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent font-body"
-                />
-              </div>
+                <div>
+                  <label className="block font-body text-sm font-medium text-text mb-2">
+                    Confirmer le mot de passe *
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    value={bookingData.confirmPassword}
+                    onChange={(e) => setBookingData({ ...bookingData, confirmPassword: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent font-body"
+                  />
+                </div>
 
-              <div>
-                <label className="block font-body text-sm font-medium text-text mb-2">
-                  Mot de passe * (min. 6 caractères)
-                </label>
-                <input
-                  type="password"
-                  required
-                  minLength={6}
-                  value={bookingData.password}
-                  onChange={(e) => setBookingData({ ...bookingData, password: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent font-body"
-                />
-              </div>
-
-              <div>
-                <label className="block font-body text-sm font-medium text-text mb-2">
-                  Confirmer le mot de passe *
-                </label>
-                <input
-                  type="password"
-                  required
-                  minLength={6}
-                  value={bookingData.confirmPassword}
-                  onChange={(e) => setBookingData({ ...bookingData, confirmPassword: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent font-body"
-                />
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowBookingForm(false);
-                    setSelectedSlot(null);
-                  }}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg font-body font-medium text-gray-700 hover:bg-gray-50 transition"
-                >
-                  Annuler
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 rounded-lg font-body font-medium transition"
-                  style={{ 
-                    backgroundColor: CALENDAR_COLORS.available,
-                    color: 'white'
-                  }}
-                >
-                  Créer mon compte et confirmer
-                </button>
-              </div>
-            </form>
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowBookingForm(false);
+                      setSelectedSlot(null);
+                    }}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg font-body font-medium text-gray-700 hover:bg-gray-50 transition"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 px-4 py-2 rounded-lg font-body font-medium transition"
+                    style={{ 
+                      backgroundColor: CALENDAR_COLORS.available,
+                      color: 'white'
+                    }}
+                  >
+                    Créer mon compte et confirmer
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}
@@ -559,11 +802,11 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
               Réservation confirmée !
             </h3>
 
-            <p className="font-body text-center text-gray-600 mb-6">
-              Votre compte a été créé avec succès et votre rendez-vous est confirmé.
-            </p>
             <p className="font-body text-center text-gray-600 mb-2">
-              Votre compte a été créé avec succès et votre rendez-vous est confirmé.
+              {isLoggedIn 
+                ? 'Votre rendez-vous a été enregistré avec succès.'
+                : 'Votre compte a été créé avec succès et votre rendez-vous est confirmé.'
+              }
             </p>
             <p className="font-body text-center text-sm text-green-600 mb-6">
               Un email de confirmation vous a été envoyé.
@@ -604,11 +847,13 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
               </div>
             </div>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-              <p className="font-body text-sm text-blue-900">
-                <strong>Prochaine étape :</strong> Connectez-vous avec votre email et mot de passe pour accéder à votre espace client.
-              </p>
-            </div>
+            {!isLoggedIn && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <p className="font-body text-sm text-blue-900">
+                  <strong>Prochaine étape :</strong> Connectez-vous avec votre email et mot de passe pour accéder à votre espace client.
+                </p>
+              </div>
+            )}
 
             <button
               onClick={handleCloseSuccessModal}
@@ -626,5 +871,6 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
     </div>
   );
 }
+
 
 
