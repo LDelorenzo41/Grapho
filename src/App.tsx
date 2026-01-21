@@ -3,6 +3,8 @@ import { AuthProvider } from './contexts/AuthContext';
 import { Layout } from './components/Layout/Layout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { CookieBanner } from './components/CookieBanner';
+import { SEO } from './components/SEO'; // <-- AJOUTER
+
 
 import { Home } from './pages/Home';
 import { Method } from './pages/Method';
@@ -33,6 +35,7 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+      <SEO /> {/* <-- AJOUTER ICI */}
         <Layout>
           <Routes>
             <Route path="/" element={<Home />} />

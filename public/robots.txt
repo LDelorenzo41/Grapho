@@ -1,0 +1,17 @@
+# Robots.txt pour philippinecornet.com
+# Graphothérapeute à Chargé, près d'Amboise
+
+User-agent: *
+Allow: /
+Disallow: /client/
+Disallow: /admin/
+Disallow: /connexion
+Disallow: /reset-password
+Disallow: /force-password-change
+Disallow: /offline
+
+# Sitemap
+Sitemap: https://philippinecornet.com/sitemap.xml
+
+# Crawl-delay (optionnel, respecté par certains bots)
+Crawl-delay: 1
