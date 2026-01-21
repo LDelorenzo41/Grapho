@@ -68,6 +68,7 @@ serve(async (req: Request) => {
     const ADMIN_EMAIL = Deno.env.get('ADMIN_EMAIL')
     const APP_NAME = Deno.env.get('APP_NAME') || 'Grapho'
     const FROM_EMAIL = Deno.env.get('FROM_EMAIL') || 'onboarding@resend.dev'
+    const REPLY_TO_EMAIL = Deno.env.get('REPLY_TO_EMAIL') || ADMIN_EMAIL
     const APP_URL = Deno.env.get('APP_URL') || 'https://grapho.fr'
 
     if (!RESEND_API_KEY || !ADMIN_EMAIL) {
@@ -76,6 +77,17 @@ serve(async (req: Request) => {
     }
 
     console.log('✅ Secrets chargés')
+    console.log('📧 FROM_EMAIL:', FROM_EMAIL)
+    console.log('📧 REPLY_TO_EMAIL:', REPLY_TO_EMAIL)
+    console.log('📧 ADMIN_EMAIL:', ADMIN_EMAIL)
+    
+    // ⚠️ AVERTISSEMENT : Si FROM_EMAIL est 'onboarding@resend.dev', Resend est en mode test
+    // et ne peut envoyer des emails qu'à l'adresse du propriétaire du compte Resend !
+    if (FROM_EMAIL === 'onboarding@resend.dev') {
+      console.warn('⚠️ ATTENTION: FROM_EMAIL est "onboarding@resend.dev" - Mode test Resend activé!')
+      console.warn('⚠️ Les emails ne seront envoyés qu\'à l\'adresse du compte Resend.')
+      console.warn('⚠️ Pour envoyer à d\'autres destinataires, configurez un domaine vérifié sur Resend.')
+    }
 
     const requestData = await req.json()
     
@@ -98,64 +110,101 @@ serve(async (req: Request) => {
       emailRequest = requestData as EmailRequest
     }
 
-    const results: { admin?: boolean; client?: boolean } = {}
+    const results: { admin?: boolean; client?: boolean; adminError?: string; clientError?: string } = {}
 
     // Traiter selon le type
     switch (emailRequest.type) {
       case 'new_appointment':
-        results.admin = await sendAdminNewAppointmentEmail(
+        console.log('📨 Envoi notification nouveau RDV...')
+        const adminResultAppt = await sendAdminNewAppointmentEmail(
           emailRequest,
           RESEND_API_KEY,
           ADMIN_EMAIL,
           APP_NAME,
-          FROM_EMAIL
+          FROM_EMAIL,
+          REPLY_TO_EMAIL
         )
-        results.client = await sendClientConfirmationEmail(
+        results.admin = adminResultAppt.success
+        if (!adminResultAppt.success) results.adminError = adminResultAppt.error
+        
+        const clientResultAppt = await sendClientConfirmationEmail(
           emailRequest,
           RESEND_API_KEY,
           APP_NAME,
           FROM_EMAIL,
-          APP_URL
+          APP_URL,
+          REPLY_TO_EMAIL
         )
+        results.client = clientResultAppt.success
+        if (!clientResultAppt.success) results.clientError = clientResultAppt.error
         break
 
       case 'contact_form':
-        results.admin = await sendContactFormEmail(
+        console.log('📨 Envoi formulaire de contact...')
+        console.log('📧 Destinataire admin:', ADMIN_EMAIL)
+        console.log('📧 Destinataire client (confirmation):', emailRequest.email)
+        
+        const adminResultContact = await sendContactFormEmail(
           emailRequest,
           RESEND_API_KEY,
           ADMIN_EMAIL,
           APP_NAME,
-          FROM_EMAIL
+          FROM_EMAIL,
+          REPLY_TO_EMAIL
         )
-        results.client = await sendContactFormAcknowledgement(
+        results.admin = adminResultContact.success
+        if (!adminResultContact.success) results.adminError = adminResultContact.error
+        
+        const clientResultContact = await sendContactFormAcknowledgement(
           emailRequest,
           RESEND_API_KEY,
           APP_NAME,
-          FROM_EMAIL
+          FROM_EMAIL,
+          REPLY_TO_EMAIL
         )
+        results.client = clientResultContact.success
+        if (!clientResultContact.success) results.clientError = clientResultContact.error
         break
 
       case 'appointment_cancelled':
-        results.admin = await sendCancellationNotificationAdmin(
+        console.log('📨 Envoi notification annulation...')
+        const adminResultCancel = await sendCancellationNotificationAdmin(
           emailRequest,
           RESEND_API_KEY,
           ADMIN_EMAIL,
           APP_NAME,
-          FROM_EMAIL
+          FROM_EMAIL,
+          REPLY_TO_EMAIL
         )
-        results.client = await sendCancellationConfirmationClient(
+        results.admin = adminResultCancel.success
+        if (!adminResultCancel.success) results.adminError = adminResultCancel.error
+        
+        const clientResultCancel = await sendCancellationConfirmationClient(
           emailRequest,
           RESEND_API_KEY,
           APP_NAME,
-          FROM_EMAIL
+          FROM_EMAIL,
+          REPLY_TO_EMAIL
         )
+        results.client = clientResultCancel.success
+        if (!clientResultCancel.success) results.clientError = clientResultCancel.error
         break
 
       default:
         throw new Error('Type d\'email non reconnu')
     }
 
-    console.log('✅ Emails envoyés:', results)
+    console.log('✅ Résultats envoi emails:', JSON.stringify(results, null, 2))
+    
+    // Log d'avertissement si l'email client a échoué
+    if (!results.client) {
+      console.error('❌ L\'email au client a échoué!')
+      console.error('❌ Erreur:', results.clientError)
+      if (FROM_EMAIL === 'onboarding@resend.dev') {
+        console.error('❌ CAUSE PROBABLE: Vous utilisez onboarding@resend.dev (mode test Resend)')
+        console.error('❌ SOLUTION: Vérifiez un domaine sur Resend et configurez FROM_EMAIL')
+      }
+    }
 
     return new Response(
       JSON.stringify({ success: true, results }),
@@ -183,35 +232,62 @@ serve(async (req: Request) => {
 // FONCTIONS D'ENVOI D'EMAILS
 // ============================================================================
 
+interface SendEmailResult {
+  success: boolean
+  error?: string
+}
+
 async function sendEmail(
   apiKey: string,
   from: string,
   to: string,
   subject: string,
-  html: string
-): Promise<boolean> {
+  html: string,
+  replyTo?: string
+): Promise<SendEmailResult> {
   try {
+    console.log(`📤 Tentative d'envoi email à: ${to}`)
+    console.log(`📤 From: ${from}`)
+    console.log(`📤 Reply-To: ${replyTo || 'non défini'}`)
+    console.log(`📤 Subject: ${subject}`)
+    
+    const payload: Record<string, unknown> = { 
+      from, 
+      to: [to], 
+      subject, 
+      html 
+    }
+    
+    // Ajouter reply_to si spécifié
+    if (replyTo) {
+      payload.reply_to = replyTo
+    }
+    
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ from, to: [to], subject, html }),
+      body: JSON.stringify(payload),
     })
 
     const data = await response.json()
 
     if (!response.ok) {
-      console.error('❌ Erreur Resend:', data)
-      return false
+      const errorMsg = data.message || data.error || JSON.stringify(data)
+      console.error(`❌ Erreur Resend pour ${to}:`, errorMsg)
+      console.error('❌ Détails complets:', JSON.stringify(data, null, 2))
+      return { success: false, error: errorMsg }
     }
 
-    console.log('✅ Email envoyé à:', to)
-    return true
+    console.log(`✅ Email envoyé avec succès à: ${to}`)
+    console.log('✅ Réponse Resend:', JSON.stringify(data))
+    return { success: true }
   } catch (error) {
-    console.error('❌ Erreur envoi email:', error)
-    return false
+    const errorMsg = error instanceof Error ? error.message : 'Erreur inconnue'
+    console.error(`❌ Exception lors de l'envoi à ${to}:`, errorMsg)
+    return { success: false, error: errorMsg }
   }
 }
 
@@ -224,8 +300,9 @@ async function sendAdminNewAppointmentEmail(
   apiKey: string,
   adminEmail: string,
   appName: string,
-  fromEmail: string
-): Promise<boolean> {
+  fromEmail: string,
+  replyTo?: string
+): Promise<SendEmailResult> {
   const phoneSection = data.clientPhone
     ? `<p style="margin: 8px 0; color: #6b7280;"><strong>Téléphone :</strong> ${data.clientPhone}</p>`
     : ''
@@ -301,7 +378,8 @@ async function sendAdminNewAppointmentEmail(
     `${appName} <${fromEmail}>`,
     adminEmail,
     `🔔 Nouveau RDV - ${data.clientFirstName} ${data.clientLastName} - ${data.appointmentDate}`,
-    html
+    html,
+    replyTo
   )
 }
 
@@ -310,8 +388,9 @@ async function sendClientConfirmationEmail(
   apiKey: string,
   appName: string,
   fromEmail: string,
-  appUrl: string
-): Promise<boolean> {
+  appUrl: string,
+  replyTo?: string
+): Promise<SendEmailResult> {
   const typeSection = data.appointmentType
     ? `<p style="margin: 8px 0; color: #6b7280;"><strong>Type :</strong> ${data.appointmentType}</p>`
     : ''
@@ -409,7 +488,8 @@ async function sendClientConfirmationEmail(
     `${appName} <${fromEmail}>`,
     data.clientEmail,
     `✅ Confirmation de votre rendez-vous - ${data.appointmentDate}`,
-    html
+    html,
+    replyTo
   )
 }
 
@@ -422,8 +502,9 @@ async function sendContactFormEmail(
   apiKey: string,
   adminEmail: string,
   appName: string,
-  fromEmail: string
-): Promise<boolean> {
+  fromEmail: string,
+  replyTo?: string
+): Promise<SendEmailResult> {
   const phoneSection = data.phone
     ? `<p style="margin: 8px 0; color: #6b7280;"><strong>Téléphone :</strong> ${data.phone}</p>`
     : ''
@@ -493,7 +574,8 @@ async function sendContactFormEmail(
     `${appName} Contact <${fromEmail}>`,
     adminEmail,
     `✉️ Nouveau message de ${data.name}`,
-    html
+    html,
+    replyTo
   )
 }
 
@@ -501,8 +583,11 @@ async function sendContactFormAcknowledgement(
   data: ContactFormRequest,
   apiKey: string,
   appName: string,
-  fromEmail: string
-): Promise<boolean> {
+  fromEmail: string,
+  replyTo?: string
+): Promise<SendEmailResult> {
+  console.log(`📨 Envoi accusé de réception à: ${data.email}`)
+  
   const html = `
     <!DOCTYPE html>
     <html>
@@ -561,7 +646,8 @@ async function sendContactFormAcknowledgement(
     `${appName} <${fromEmail}>`,
     data.email,
     `✅ Nous avons bien reçu votre message`,
-    html
+    html,
+    replyTo
   )
 }
 
@@ -574,8 +660,9 @@ async function sendCancellationNotificationAdmin(
   apiKey: string,
   adminEmail: string,
   appName: string,
-  fromEmail: string
-): Promise<boolean> {
+  fromEmail: string,
+  replyTo?: string
+): Promise<SendEmailResult> {
   const cancelledByText = data.cancelledBy === 'client' 
     ? 'Le client a annulé son rendez-vous.' 
     : 'Vous avez annulé ce rendez-vous.'
@@ -635,7 +722,8 @@ async function sendCancellationNotificationAdmin(
     `${appName} <${fromEmail}>`,
     adminEmail,
     `❌ RDV annulé - ${data.clientFirstName} ${data.clientLastName} - ${data.appointmentDate}`,
-    html
+    html,
+    replyTo
   )
 }
 
@@ -643,8 +731,9 @@ async function sendCancellationConfirmationClient(
   data: AppointmentCancelledRequest,
   apiKey: string,
   appName: string,
-  fromEmail: string
-): Promise<boolean> {
+  fromEmail: string,
+  replyTo?: string
+): Promise<SendEmailResult> {
   const html = `
     <!DOCTYPE html>
     <html>
@@ -704,6 +793,8 @@ async function sendCancellationConfirmationClient(
     `${appName} <${fromEmail}>`,
     data.clientEmail,
     `❌ Confirmation d'annulation - ${data.appointmentDate}`,
-    html
+    html,
+    replyTo
   )
 }
+

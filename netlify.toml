@@ -2,6 +2,17 @@
   command = "npm run build"
   publish = "dist"
 
+# Redirections pour les fichiers SEO (doivent être AVANT la redirection SPA)
+[[redirects]]
+  from = "/robots.txt"
+  to = "/robots.txt"
+  status = 200
+
+[[redirects]]
+  from = "/sitemap.xml"
+  to = "/sitemap.xml"
+  status = 200
+
 # Redirections pour SPA (Single Page Application)
 [[redirects]]
   from = "/*"
@@ -18,6 +29,19 @@
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(), microphone=(), geolocation=()"
     Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https: blob:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.resend.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self';"
+
+# Headers SEO pour robots.txt et sitemap.xml
+[[headers]]
+  for = "/robots.txt"
+  [headers.values]
+    Content-Type = "text/plain; charset=utf-8"
+    Cache-Control = "public, max-age=86400"
+
+[[headers]]
+  for = "/sitemap.xml"
+  [headers.values]
+    Content-Type = "application/xml; charset=utf-8"
+    Cache-Control = "public, max-age=86400"
 
 # Cache pour les assets statiques
 [[headers]]
@@ -44,4 +68,5 @@
   for = "/sw.js"
   [headers.values]
     Cache-Control = "no-cache"
+
 
