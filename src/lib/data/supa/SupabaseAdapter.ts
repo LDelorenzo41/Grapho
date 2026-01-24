@@ -254,6 +254,28 @@ async getAvailableSlots(
 ): Promise<AvailableSlot[]> {
   if (!supabase) return [];
 
+  // Charger les règles de disponibilité
+  const { data: rulesData, error: rulesError } = await supabase
+    .from('availability_rules')
+    .select('*')
+    .eq('is_active', true);
+    
+  if (rulesError) throw rulesError;
+
+  // Convertir les règles en format utilisable
+  const rules: AvailabilityRule[] = (rulesData || []).map(rule => ({
+    id: rule.id,
+    dayOfWeek: rule.day_of_week,
+    startTime: rule.start_time,
+    endTime: rule.end_time,
+    isActive: rule.is_active,
+    scheduleType: rule.schedule_type,
+  }));
+
+  // Importer et utiliser la fonction de conversion
+  const { convertRulesToSchedules } = await import('../../appointment/availabilityService');
+  const schedules = convertRulesToSchedules(rules);
+
   // Charger tous les rendez-vous de la période
   const { data: appointmentsData, error: appointmentsError } = await supabase
     .from('appointments')
@@ -268,12 +290,13 @@ async getAvailableSlots(
     status: apt.status,
   }));
 
-  // Calculer les créneaux disponibles avec la nouvelle logique
+  // Calculer les créneaux disponibles avec les schedules dynamiques
   const slots = calculateAvailableSlots(
     startDate,
     endDate,
     existingAppointments,
-    appointmentType as AppointmentType | undefined
+    appointmentType as AppointmentType | undefined,
+    schedules  // Nouveau paramètre
   );
 
   // Convertir au format attendu par l'interface existante
@@ -283,6 +306,7 @@ async getAvailableSlots(
     endTime: slot.endTime,
   }));
 },
+
 
 
       async create(appointment) {
@@ -865,17 +889,18 @@ async getAvailableSlots(
         const { data, error } = await supabase
           .from('availability_rules')
           .select('*')
+          .order('schedule_type', { ascending: true })
           .order('day_of_week', { ascending: true })
           .order('start_time', { ascending: true });
         if (error) throw error;
         
-        // Convertir snake_case en camelCase
         return (data || []).map(rule => ({
           id: rule.id,
           dayOfWeek: rule.day_of_week,
           startTime: rule.start_time,
           endTime: rule.end_time,
           isActive: rule.is_active,
+          scheduleType: rule.schedule_type,
         }));
       },
       async getById(id: string) {
@@ -888,24 +913,24 @@ async getAvailableSlots(
         if (error) throw error;
         if (!data) return null;
         
-        // Convertir snake_case en camelCase
         return {
           id: data.id,
           dayOfWeek: data.day_of_week,
           startTime: data.start_time,
           endTime: data.end_time,
           isActive: data.is_active,
+          scheduleType: data.schedule_type,
         };
       },
       async create(rule) {
         if (!supabase) throw new Error('Supabase not configured');
         
-        // Convertir camelCase en snake_case pour Supabase
         const dbRule = {
           day_of_week: rule.dayOfWeek,
           start_time: rule.startTime,
           end_time: rule.endTime,
           is_active: rule.isActive,
+          schedule_type: rule.scheduleType,
         };
         
         const { data, error } = await supabase
@@ -915,24 +940,24 @@ async getAvailableSlots(
           .single();
         if (error) throw error;
         
-        // Convertir snake_case en camelCase pour le retour
         return {
           id: data.id,
           dayOfWeek: data.day_of_week,
           startTime: data.start_time,
           endTime: data.end_time,
           isActive: data.is_active,
+          scheduleType: data.schedule_type,
         };
       },
       async update(id: string, updates) {
         if (!supabase) throw new Error('Supabase not configured');
         
-        // Convertir camelCase en snake_case pour Supabase
         const dbUpdates: any = {};
         if (updates.dayOfWeek !== undefined) dbUpdates.day_of_week = updates.dayOfWeek;
         if (updates.startTime !== undefined) dbUpdates.start_time = updates.startTime;
         if (updates.endTime !== undefined) dbUpdates.end_time = updates.endTime;
         if (updates.isActive !== undefined) dbUpdates.is_active = updates.isActive;
+        if (updates.scheduleType !== undefined) dbUpdates.schedule_type = updates.scheduleType;
         
         const { data, error } = await supabase
           .from('availability_rules')
@@ -942,13 +967,13 @@ async getAvailableSlots(
           .single();
         if (error) throw error;
         
-        // Convertir snake_case en camelCase pour le retour
         return {
           id: data.id,
           dayOfWeek: data.day_of_week,
           startTime: data.start_time,
           endTime: data.end_time,
           isActive: data.is_active,
+          scheduleType: data.schedule_type,
         };
       },
       async delete(id: string) {
@@ -960,5 +985,6 @@ async getAvailableSlots(
         if (error) throw error;
       },
     },
+
   };
 };

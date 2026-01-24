@@ -1,11 +1,37 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Mail, Phone, MapPin, Calendar, Clock, Info, Send, CheckCircle, AlertCircle } from 'lucide-react';
 import { BookingCalendar } from '../components/BookingCalendar';
 import { CALENDAR_COLORS } from '../lib/appointment';
 import { sendContactFormMessage } from '../lib/email';
+import { dataAdapter, type AvailabilityRule } from '../lib/data';
+
+// Jours de la semaine
+const DAYS = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+const ALL_DAYS = [1, 2, 3, 4, 5, 6, 0]; // Lundi à Dimanche (ordre d'affichage)
+
+// Fonction pour formater l'heure (09:30 -> 9h30)
+function formatTime(time: string): string {
+  const [hours, minutes] = time.split(':');
+  const h = parseInt(hours, 10);
+  return `${h}h${minutes}`;
+}
+
+// Fonction pour formater les créneaux d'un jour
+function formatDaySlots(rules: AvailabilityRule[]): string {
+  if (rules.length === 0) return '';
+  
+  // Trier par heure de début
+  const sorted = [...rules].sort((a, b) => a.startTime.localeCompare(b.startTime));
+  
+  return sorted
+    .map(r => `${formatTime(r.startTime)} - ${formatTime(r.endTime)}`)
+    .join(', ');
+}
 
 export function Contact() {
   const [showBooking, setShowBooking] = useState(false);
+  const [availabilityRules, setAvailabilityRules] = useState<AvailabilityRule[]>([]);
+  const [loadingSchedule, setLoadingSchedule] = useState(true);
   
   // États du formulaire de contact
   const [formData, setFormData] = useState({
@@ -16,6 +42,41 @@ export function Contact() {
   });
   const [formStatus, setFormStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
   const [formError, setFormError] = useState('');
+
+  // Charger les disponibilités au montage
+  useEffect(() => {
+    const loadSchedule = async () => {
+      try {
+        const rules = await dataAdapter.availabilityRules.getAll();
+        setAvailabilityRules(rules.filter(r => r.isActive));
+      } catch (error) {
+        console.error('Error loading schedule:', error);
+      } finally {
+        setLoadingSchedule(false);
+      }
+    };
+    loadSchedule();
+  }, []);
+
+  // Séparer les règles par type
+  const normalRules = availabilityRules.filter(r => r.scheduleType === 'normal');
+  const exceptionalRules = availabilityRules.filter(r => r.scheduleType === 'exceptional');
+
+  // Grouper par jour
+  const normalByDay = normalRules.reduce((acc, rule) => {
+    if (!acc[rule.dayOfWeek]) acc[rule.dayOfWeek] = [];
+    acc[rule.dayOfWeek].push(rule);
+    return acc;
+  }, {} as Record<number, AvailabilityRule[]>);
+
+  const exceptionalByDay = exceptionalRules.reduce((acc, rule) => {
+    if (!acc[rule.dayOfWeek]) acc[rule.dayOfWeek] = [];
+    acc[rule.dayOfWeek].push(rule);
+    return acc;
+  }, {} as Record<number, AvailabilityRule[]>);
+
+  // Déterminer les jours travaillés (vacances)
+  const workingDaysExceptional = Object.keys(exceptionalByDay).map(Number);
 
   const handleSubmitContact = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -131,15 +192,14 @@ export function Contact() {
                     <div>
                       <p className="font-body text-sm text-gray-600">Adresse</p>
                       <p className="font-body text-text">
-  Pôle Val d’Amboise<br />
-  274 rue du Château d’Eau<br />
-  Ilot n°4 – Zone de la Boitardière<br />
-  37530 Chargé<br />
-  <span className="text-sm text-gray-600">
-    Accès PMR, parking gratuit sur place, salle d’attente.
-  </span>
-</p>
-
+                        Pôle Val d'Amboise<br />
+                        274 rue du Château d'Eau<br />
+                        Ilot n°4 – Zone de la Boitardière<br />
+                        37530 Chargé<br />
+                        <span className="text-sm text-gray-600">
+                          Accès PMR, parking gratuit sur place, salle d'attente.
+                        </span>
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -155,50 +215,55 @@ export function Contact() {
                   <h3 className="font-title text-lg font-bold text-text">Horaires de consultation</h3>
                 </div>
                 
-                {/* Horaires normaux */}
-                <div className="space-y-2 font-body text-gray-700 mb-4">
-                  <div className="flex justify-between">
-                    <span>Lundi</span>
-                    <span className="text-gray-400">Fermé</span>
+                {/* Horaires normaux - Chargement dynamique */}
+                {loadingSchedule ? (
+                  <div className="text-center py-4">
+                    <p className="font-body text-gray-500 text-sm">Chargement des horaires...</p>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Mardi</span>
-                    <span className="text-gray-400">Fermé</span>
+                ) : (
+                  <div className="space-y-2 font-body text-gray-700 mb-4">
+                    {ALL_DAYS.map(dayIndex => {
+                      const dayRules = normalByDay[dayIndex] || [];
+                      const isWorking = dayRules.length > 0;
+                      
+                      return (
+                        <div key={dayIndex} className="flex justify-between items-start">
+                          <span className={isWorking ? 'font-semibold' : ''} style={isWorking ? { color: CALENDAR_COLORS.available } : undefined}>
+                            {DAYS[dayIndex]}
+                          </span>
+                          {isWorking ? (
+                            <span className="text-right">{formatDaySlots(dayRules)}</span>
+                          ) : (
+                            <span className="text-gray-400">Fermé</span>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
-                  <div className="flex justify-between items-start">
-                    <span className="font-semibold" style={{ color: CALENDAR_COLORS.available }}>Mercredi</span>
-                    <span className="text-right">9h30 - 12h30, 13h00 - 16h00</span>
-                  </div>
-                  <div className="flex justify-between items-start">
-                    <span className="font-semibold" style={{ color: CALENDAR_COLORS.available }}>Jeudi</span>
-                    <span className="text-right">9h30 - 12h30, 13h00 - 15h00</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Vendredi</span>
-                    <span className="text-gray-400">Fermé</span>
-                  </div>
-                  <div className="flex justify-between items-start">
-                    <span className="font-semibold" style={{ color: CALENDAR_COLORS.available }}>Samedi</span>
-                    <span className="text-right">10h00 - 13h00</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Dimanche</span>
-                    <span className="text-gray-400">Fermé</span>
-                  </div>
-                </div>
+                )}
 
-                {/* Note vacances scolaires */}
-                <div 
-                  className="mt-4 p-3 rounded-lg flex items-start gap-3"
-                  style={{ backgroundColor: `${CALENDAR_COLORS.accent}30` }}
-                >
-                  <Info className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: CALENDAR_COLORS.unavailable }} />
-                  <div className="font-body text-sm text-gray-700">
-                    <p className="font-semibold mb-1">Vacances scolaires & jours fériés</p>
-                    <p>Horaires étendus les mercredis, jeudis et samedis :</p>
-                    <p className="mt-1">9h30 - 12h30, 13h30 - 18h30</p>
+                {/* Note vacances scolaires - Dynamique */}
+                {!loadingSchedule && exceptionalRules.length > 0 && (
+                  <div 
+                    className="mt-4 p-3 rounded-lg flex items-start gap-3"
+                    style={{ backgroundColor: `${CALENDAR_COLORS.accent}30` }}
+                  >
+                    <Info className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: CALENDAR_COLORS.unavailable }} />
+                    <div className="font-body text-sm text-gray-700">
+                      <p className="font-semibold mb-1">Vacances scolaires & jours fériés</p>
+                      <p>Horaires étendus les {workingDaysExceptional.map(d => DAYS[d].toLowerCase()).join(', ')} :</p>
+                      {workingDaysExceptional.map(dayIndex => {
+                        const dayRules = exceptionalByDay[dayIndex] || [];
+                        if (dayRules.length === 0) return null;
+                        return (
+                          <p key={dayIndex} className="mt-1">
+                            <span className="font-medium">{DAYS[dayIndex]}</span> : {formatDaySlots(dayRules)}
+                          </p>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Types de RDV */}
                 <div className="mt-4 pt-4 border-t border-gray-200">
@@ -369,6 +434,7 @@ export function Contact() {
     </div>
   );
 }
+
 
 
 

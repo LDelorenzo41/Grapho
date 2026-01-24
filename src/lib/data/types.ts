@@ -56,13 +56,17 @@ export interface Message {
   sentAt: string;
 }
 
+export type ScheduleType = 'normal' | 'exceptional';
+
 export interface AvailabilityRule {
   id: string;
-  dayOfWeek: number;
-  startTime: string;
-  endTime: string;
+  dayOfWeek: number;        // 0=Dimanche, 3=Mercredi, 4=Jeudi, 6=Samedi
+  startTime: string;        // Format 'HH:MM'
+  endTime: string;          // Format 'HH:MM'
   isActive: boolean;
+  scheduleType: ScheduleType;  // 'normal' = hors vacances, 'exceptional' = vacances
 }
+
 
 export interface AvailableSlot {
   date: string;

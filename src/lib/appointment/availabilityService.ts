@@ -2,7 +2,7 @@
  * Service de gestion des disponibilités
  * 
  * Ce service calcule les créneaux disponibles en tenant compte de :
- * - Les horaires d'ouverture (normaux ou exceptionnels)
+ * - Les horaires d'ouverture (normaux ou exceptionnels) depuis la base de données
  * - Les jours fériés nationaux
  * - Les vacances scolaires Zone B
  * - Les jours d'indisponibilité spécifiques
@@ -29,6 +29,8 @@ import type {
   TimeRange,
   AvailabilityMode,
 } from './appointmentConfig';
+
+import type { AvailabilityRule } from '../data/types';
 
 // ============================================================================
 // TYPES
@@ -66,6 +68,14 @@ export interface ExistingAppointment {
   startTime: string; // ISO datetime
   endTime: string;   // ISO datetime
   status: string;
+}
+
+/**
+ * Schedules dynamiques depuis la DB
+ */
+export interface DynamicSchedules {
+  normal: Record<number, DaySchedule>;
+  exceptional: Record<number, DaySchedule>;
 }
 
 // ============================================================================
@@ -117,6 +127,96 @@ export function addDays(date: Date, days: number): Date {
 }
 
 // ============================================================================
+// CONVERSION DES RÈGLES DB EN SCHEDULES
+// ============================================================================
+
+/**
+ * Convertit les AvailabilityRule[] de la DB en DynamicSchedules
+ * Regroupe les créneaux par jour et détermine matin/après-midi
+ */
+export function convertRulesToSchedules(rules: AvailabilityRule[]): DynamicSchedules {
+  const result: DynamicSchedules = {
+    normal: {},
+    exceptional: {},
+  };
+
+  // Séparer par type
+  const normalRules = rules.filter(r => r.scheduleType === 'normal' && r.isActive);
+  const exceptionalRules = rules.filter(r => r.scheduleType === 'exceptional' && r.isActive);
+
+  // Convertir les règles normales
+  const normalByDay = groupRulesByDay(normalRules);
+  for (const [dayOfWeek, dayRules] of Object.entries(normalByDay)) {
+    result.normal[Number(dayOfWeek)] = rulesToDaySchedule(dayRules);
+  }
+
+  // Convertir les règles exceptionnelles
+  const exceptionalByDay = groupRulesByDay(exceptionalRules);
+  for (const [dayOfWeek, dayRules] of Object.entries(exceptionalByDay)) {
+    result.exceptional[Number(dayOfWeek)] = rulesToDaySchedule(dayRules);
+  }
+
+  return result;
+}
+
+/**
+ * Groupe les règles par jour de la semaine
+ */
+function groupRulesByDay(rules: AvailabilityRule[]): Record<number, AvailabilityRule[]> {
+  return rules.reduce((acc, rule) => {
+    if (!acc[rule.dayOfWeek]) {
+      acc[rule.dayOfWeek] = [];
+    }
+    acc[rule.dayOfWeek].push(rule);
+    return acc;
+  }, {} as Record<number, AvailabilityRule[]>);
+}
+
+/**
+ * Convertit les règles d'un jour en DaySchedule (matin/après-midi)
+ * Considère qu'un créneau commençant avant 13h est le matin
+ */
+function rulesToDaySchedule(rules: AvailabilityRule[]): DaySchedule {
+  // Trier par heure de début
+  const sorted = [...rules].sort((a, b) => a.startTime.localeCompare(b.startTime));
+  
+  let morning: TimeRange | null = null;
+  let afternoon: TimeRange | null = null;
+
+  for (const rule of sorted) {
+    const startMinutes = timeToMinutes(rule.startTime);
+    
+    // Si commence avant 13h00 (780 minutes), c'est le matin
+    if (startMinutes < 780) {
+      // Si on a déjà un matin, on étend ou on fusionne
+      if (morning) {
+        // Étendre si les créneaux se chevauchent ou sont contigus
+        const morningEnd = timeToMinutes(morning.end);
+        const ruleStart = timeToMinutes(rule.startTime);
+        if (ruleStart <= morningEnd) {
+          morning.end = rule.endTime > morning.end ? rule.endTime : morning.end;
+        }
+      } else {
+        morning = { start: rule.startTime, end: rule.endTime };
+      }
+    } else {
+      // Après-midi
+      if (afternoon) {
+        const afternoonEnd = timeToMinutes(afternoon.end);
+        const ruleStart = timeToMinutes(rule.startTime);
+        if (ruleStart <= afternoonEnd) {
+          afternoon.end = rule.endTime > afternoon.end ? rule.endTime : afternoon.end;
+        }
+      } else {
+        afternoon = { start: rule.startTime, end: rule.endTime };
+      }
+    }
+  }
+
+  return { morning, afternoon };
+}
+
+// ============================================================================
 // FONCTIONS DE VÉRIFICATION DES DATES
 // ============================================================================
 
@@ -148,9 +248,14 @@ export function isBlockedDate(dateStr: string): boolean {
 }
 
 /**
- * Vérifie si une date est un jour ouvré (Mercredi, Jeudi ou Samedi)
+ * Vérifie si une date est un jour ouvré (basé sur les schedules dynamiques ou par défaut)
  */
-export function isWorkingDay(dayOfWeek: number): boolean {
+export function isWorkingDay(dayOfWeek: number, schedules?: DynamicSchedules): boolean {
+  if (schedules) {
+    // Un jour est travaillé s'il a des horaires normaux OU exceptionnels
+    return !!(schedules.normal[dayOfWeek] || schedules.exceptional[dayOfWeek]);
+  }
+  // Fallback sur les constantes
   return dayOfWeek === WORKING_DAYS.WEDNESDAY ||
          dayOfWeek === WORKING_DAYS.THURSDAY ||
          dayOfWeek === WORKING_DAYS.SATURDAY;
@@ -170,11 +275,21 @@ export function getAvailabilityMode(dateStr: string): AvailabilityMode {
 
 /**
  * Récupère les horaires pour un jour et un mode donnés
+ * Utilise les schedules dynamiques si fournis, sinon fallback sur les constantes
  */
 export function getScheduleForDay(
   dayOfWeek: number,
-  mode: AvailabilityMode
+  mode: AvailabilityMode,
+  schedules?: DynamicSchedules
 ): DaySchedule | null {
+  if (schedules) {
+    const schedule = mode === 'exceptional' 
+      ? schedules.exceptional[dayOfWeek] 
+      : schedules.normal[dayOfWeek];
+    return schedule || null;
+  }
+  
+  // Fallback sur les constantes hardcodées
   if (!isWorkingDay(dayOfWeek)) {
     return null;
   }
@@ -193,14 +308,15 @@ export function getScheduleForDay(
 /**
  * Récupère toutes les informations sur un jour donné
  */
-export function getDayInfo(dateStr: string): DayInfo {
+export function getDayInfo(dateStr: string, schedules?: DynamicSchedules): DayInfo {
   const date = parseStringToDate(dateStr);
   const dayOfWeek = date.getDay();
-  const working = isWorkingDay(dayOfWeek);
+  const mode = getAvailabilityMode(dateStr);
+  const schedule = getScheduleForDay(dayOfWeek, mode, schedules);
+  const working = schedule !== null;
   const blocked = isBlockedDate(dateStr);
   const holiday = isHoliday(dateStr);
   const vacation = isSchoolVacation(dateStr);
-  const mode = getAvailabilityMode(dateStr);
   
   // Déterminer la couleur du jour
   let color: string = CALENDAR_COLORS.background;
@@ -218,7 +334,7 @@ export function getDayInfo(dateStr: string): DayInfo {
     isHoliday: holiday,
     isVacation: vacation,
     availabilityMode: mode,
-    schedule: blocked ? null : getScheduleForDay(dayOfWeek, mode),
+    schedule: blocked ? null : schedule,
     color,
   };
 }
@@ -256,8 +372,8 @@ function generateSlotsForTimeRange(
  * Génère tous les créneaux de base pour un jour
  * (sans vérification des conflits)
  */
-export function generateBaseSlotsForDay(dateStr: string): AvailableSlot[] {
-  const dayInfo = getDayInfo(dateStr);
+export function generateBaseSlotsForDay(dateStr: string, schedules?: DynamicSchedules): AvailableSlot[] {
+  const dayInfo = getDayInfo(dateStr, schedules);
   
   // Jour non travaillé ou bloqué : pas de créneaux
   if (!dayInfo.isWorkingDay || dayInfo.isBlocked || !dayInfo.schedule) {
@@ -396,13 +512,15 @@ export function filterSlotsForAppointmentType(
  * @param endDate - Date de fin (YYYY-MM-DD)
  * @param appointments - Liste des RDV existants
  * @param appointmentType - Type de RDV souhaité (optionnel, par défaut tous)
+ * @param schedules - Schedules dynamiques depuis la DB (optionnel)
  * @returns Liste des créneaux disponibles
  */
 export function getAvailableSlots(
   startDate: string,
   endDate: string,
   appointments: ExistingAppointment[],
-  appointmentType?: AppointmentType
+  appointmentType?: AppointmentType,
+  schedules?: DynamicSchedules
 ): AvailableSlot[] {
   const slots: AvailableSlot[] = [];
   
@@ -414,7 +532,7 @@ export function getAvailableSlots(
     const dateStr = formatDateToString(currentDate);
     
     // Générer les créneaux de base pour ce jour
-    const daySlots = generateBaseSlotsForDay(dateStr);
+    const daySlots = generateBaseSlotsForDay(dateStr, schedules);
     slots.push(...daySlots);
     
     currentDate = addDays(currentDate, 1);
@@ -442,7 +560,11 @@ export function getAvailableSlots(
  * Récupère les informations de tous les jours d'une période
  * Utile pour afficher le calendrier avec les bonnes couleurs
  */
-export function getDaysInfoForPeriod(startDate: string, endDate: string): DayInfo[] {
+export function getDaysInfoForPeriod(
+  startDate: string, 
+  endDate: string,
+  schedules?: DynamicSchedules
+): DayInfo[] {
   const days: DayInfo[] = [];
   
   let currentDate = parseStringToDate(startDate);
@@ -450,7 +572,7 @@ export function getDaysInfoForPeriod(startDate: string, endDate: string): DayInf
   
   while (currentDate <= end) {
     const dateStr = formatDateToString(currentDate);
-    days.push(getDayInfo(dateStr));
+    days.push(getDayInfo(dateStr, schedules));
     currentDate = addDays(currentDate, 1);
   }
   
@@ -463,9 +585,10 @@ export function getDaysInfoForPeriod(startDate: string, endDate: string): DayInf
 export function hasAvailableSlotsOnDate(
   dateStr: string,
   appointments: ExistingAppointment[],
-  appointmentType?: AppointmentType
+  appointmentType?: AppointmentType,
+  schedules?: DynamicSchedules
 ): boolean {
-  const slots = getAvailableSlots(dateStr, dateStr, appointments, appointmentType);
+  const slots = getAvailableSlots(dateStr, dateStr, appointments, appointmentType, schedules);
   return slots.length > 0;
 }
 
@@ -475,9 +598,11 @@ export function hasAvailableSlotsOnDate(
 export function countAvailableSlotsOnDate(
   dateStr: string,
   appointments: ExistingAppointment[],
-  appointmentType?: AppointmentType
+  appointmentType?: AppointmentType,
+  schedules?: DynamicSchedules
 ): number {
-  const slots = getAvailableSlots(dateStr, dateStr, appointments, appointmentType);
+  const slots = getAvailableSlots(dateStr, dateStr, appointments, appointmentType, schedules);
   return slots.length;
 }
+
 

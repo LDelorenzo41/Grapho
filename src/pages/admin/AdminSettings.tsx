@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Save, Plus, Trash2, Edit2, X, ArrowLeft, Lock } from 'lucide-react';
+import { Plus, Trash2, Edit2, X, ArrowLeft, Lock, Clock, Sun, Umbrella } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
-import { dataAdapter, type Settings, type AvailabilityRule } from '../../lib/data';
+import { dataAdapter, type Settings, type AvailabilityRule, type ScheduleType } from '../../lib/data';
 import { DemoBanner } from '../../components/DemoBanner';
 
 // Client Supabase pour le changement de mot de passe
@@ -13,17 +13,21 @@ const getSupabaseClient = () => {
   return createClient(url, key);
 };
 
+const DAYS = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+const WORKING_DAYS = [3, 4, 6]; // Mercredi, Jeudi, Samedi
+
 export function AdminSettings() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [availabilityRules, setAvailabilityRules] = useState<AvailabilityRule[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [editingRule, setEditingRule] = useState<AvailabilityRule | null>(null);
   const [showAddRule, setShowAddRule] = useState(false);
+  const [activeScheduleType, setActiveScheduleType] = useState<ScheduleType>('normal');
   const [newRule, setNewRule] = useState({
-    dayOfWeek: 1,
+    dayOfWeek: 3,
     startTime: '09:00',
     endTime: '12:00',
+    scheduleType: 'normal' as ScheduleType,
   });
 
   // États pour le changement de mot de passe
@@ -36,21 +40,19 @@ export function AdminSettings() {
   const [passwordSuccess, setPasswordSuccess] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
 
-  // ✅ NOUVEAU : État pour la modale de confirmation de suppression
+  // État pour la modale de confirmation de suppression
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [ruleToDelete, setRuleToDelete] = useState<AvailabilityRule | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        // Charger les settings
         const s = await dataAdapter.settings.get();
         if (!s.availabilityRules) {
           s.availabilityRules = [];
         }
         setSettings(s);
         
-        // ✅ Charger les availability_rules depuis la table dédiée
         const rules = await dataAdapter.availabilityRules.getAll();
         setAvailabilityRules(rules);
       } catch (error) {
@@ -62,26 +64,11 @@ export function AdminSettings() {
     loadData();
   }, []);
 
-  const handleSave = async () => {
-    if (!settings) return;
-    setSaving(true);
-    try {
-      await dataAdapter.settings.update(settings);
-      alert('Paramètres enregistrés avec succès');
-    } catch (error) {
-      console.error('Error saving settings:', error);
-      alert('Erreur lors de l\'enregistrement');
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setPasswordError('');
     setPasswordSuccess('');
 
-    // Validations
     if (passwordData.newPassword.length < 6) {
       setPasswordError('Le nouveau mot de passe doit contenir au moins 6 caractères');
       return;
@@ -102,7 +89,6 @@ export function AdminSettings() {
     }
 
     try {
-      // Méthode Supabase pour changer le mot de passe
       const { error } = await supabase.auth.updateUser({
         password: passwordData.newPassword
       });
@@ -140,13 +126,11 @@ export function AdminSettings() {
     }
   };
 
-  // ✅ NOUVELLE VERSION : Ouvrir la modale de confirmation au lieu de confirm()
   const handleDeleteRule = (rule: AvailabilityRule) => {
     setRuleToDelete(rule);
     setShowDeleteModal(true);
   };
 
-  // ✅ NOUVEAU : Confirmer la suppression
   const confirmDeleteRule = async () => {
     if (!ruleToDelete) return;
     
@@ -155,7 +139,6 @@ export function AdminSettings() {
       setAvailabilityRules(availabilityRules.filter(rule => rule.id !== ruleToDelete.id));
       setShowDeleteModal(false);
       setRuleToDelete(null);
-      alert('Disponibilité supprimée avec succès !');
     } catch (error) {
       console.error('Error deleting rule:', error);
       alert('Erreur lors de la suppression');
@@ -169,12 +152,13 @@ export function AdminSettings() {
         startTime: newRule.startTime,
         endTime: newRule.endTime,
         isActive: true,
+        scheduleType: activeScheduleType,
       };
       
       const createdRule = await dataAdapter.availabilityRules.create(rule);
       setAvailabilityRules([...availabilityRules, createdRule]);
       setShowAddRule(false);
-      setNewRule({ dayOfWeek: 1, startTime: '09:00', endTime: '12:00' });
+      setNewRule({ dayOfWeek: 3, startTime: '09:00', endTime: '12:00', scheduleType: activeScheduleType });
     } catch (error) {
       console.error('Error adding rule:', error);
       alert('Erreur lors de l\'ajout');
@@ -194,11 +178,23 @@ export function AdminSettings() {
     }
   };
 
+  // Filtrer les règles par type
+  const normalRules = availabilityRules.filter(r => r.scheduleType === 'normal');
+  const exceptionalRules = availabilityRules.filter(r => r.scheduleType === 'exceptional');
+  const currentRules = activeScheduleType === 'normal' ? normalRules : exceptionalRules;
+
+  // Grouper les règles par jour
+  const rulesByDay = currentRules.reduce((acc, rule) => {
+    if (!acc[rule.dayOfWeek]) {
+      acc[rule.dayOfWeek] = [];
+    }
+    acc[rule.dayOfWeek].push(rule);
+    return acc;
+  }, {} as Record<number, AvailabilityRule[]>);
+
   if (loading || !settings) {
     return <div className="py-16 text-center"><p className="font-body text-gray-600">Chargement...</p></div>;
   }
-
-  const days = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
 
   return (
     <div className="py-8">
@@ -276,228 +272,259 @@ export function AdminSettings() {
             </form>
           </div>
 
-          {/* Section Disponibilités */}
+          {/* SECTION: Disponibilités */}
           <div className="bg-white rounded-lg shadow-sm border p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-title text-2xl font-bold text-text">Disponibilités pour les premiers rendez-vous</h2>
+            <div className="flex items-center space-x-3 mb-6">
+              <Clock className="w-6 h-6 text-primary" />
+              <h2 className="font-title text-2xl font-bold text-text">Horaires de consultation</h2>
+            </div>
+
+            {/* Onglets Normal / Vacances */}
+            <div className="flex space-x-2 mb-6">
               <button
-                onClick={() => setShowAddRule(true)}
-                className="flex items-center space-x-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition font-body text-sm"
+                onClick={() => setActiveScheduleType('normal')}
+                className={`flex items-center space-x-2 px-4 py-3 rounded-lg font-body font-medium transition ${
+                  activeScheduleType === 'normal'
+                    ? 'bg-[#8FA382] text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
               >
-                <Plus className="w-4 h-4" />
-                <span>Ajouter</span>
+                <Sun className="w-5 h-5" />
+                <span>Hors vacances</span>
+              </button>
+              <button
+                onClick={() => setActiveScheduleType('exceptional')}
+                className={`flex items-center space-x-2 px-4 py-3 rounded-lg font-body font-medium transition ${
+                  activeScheduleType === 'exceptional'
+                    ? 'bg-[#E5B7A4] text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                <Umbrella className="w-5 h-5" />
+                <span>Vacances scolaires</span>
               </button>
             </div>
-            <div className="space-y-2">
-              {availabilityRules.map(rule => {
-                const isEditing = editingRule?.id === rule.id;
 
-                if (isEditing) {
-                  return (
-                    <div key={rule.id} className="flex items-center space-x-2 py-3 border-b">
-                      <select
-                        value={editingRule.dayOfWeek}
-                        onChange={e => setEditingRule({ ...editingRule, dayOfWeek: parseInt(e.target.value) })}
-                        className="px-2 py-1 border rounded font-body text-sm"
-                      >
-                        {days.map((day, idx) => (
-                          <option key={idx} value={idx}>{day}</option>
-                        ))}
-                      </select>
-                      <input
-                        type="time"
-                        value={editingRule.startTime}
-                        onChange={e => setEditingRule({ ...editingRule, startTime: e.target.value })}
-                        className="px-2 py-1 border rounded font-body text-sm"
-                      />
-                      <span className="font-body text-gray-600">-</span>
-                      <input
-                        type="time"
-                        value={editingRule.endTime}
-                        onChange={e => setEditingRule({ ...editingRule, endTime: e.target.value })}
-                        className="px-2 py-1 border rounded font-body text-sm"
-                      />
-                      <button
-                        onClick={() => handleEditRule(editingRule)}
-                        className="px-3 py-1 bg-primary text-white rounded text-sm font-body"
-                      >
-                        Valider
-                      </button>
-                      <button
-                        onClick={() => setEditingRule(null)}
-                        className="p-1.5 hover:bg-gray-100 rounded"
-                      >
-                        <X className="w-4 h-4 text-gray-600" />
-                      </button>
-                    </div>
-                  );
+            {/* Description */}
+            <div className={`p-4 rounded-lg mb-6 ${
+              activeScheduleType === 'normal' 
+                ? 'bg-[#8FA382]/10 border border-[#8FA382]/30' 
+                : 'bg-[#E5B7A4]/20 border border-[#E5B7A4]/30'
+            }`}>
+              <p className="font-body text-sm text-gray-700">
+                {activeScheduleType === 'normal' 
+                  ? 'Ces horaires s\'appliquent en période scolaire normale (hors vacances et jours fériés).'
+                  : 'Ces horaires s\'appliquent pendant les vacances scolaires (Zone B) et les jours fériés.'
                 }
+              </p>
+            </div>
 
+            {/* Liste des jours travaillés */}
+            <div className="space-y-4">
+              {WORKING_DAYS.map(dayIndex => {
+                const dayRules = rulesByDay[dayIndex] || [];
+                
                 return (
-                  <div key={rule.id} className="flex items-center justify-between py-3 border-b">
-                    <div className="font-body text-text">
-                      <span className="font-semibold">{days[rule.dayOfWeek]}</span>
-                      <span className="mx-2 text-gray-600">-</span>
-                      <span>{rule.startTime} - {rule.endTime}</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
+                  <div key={dayIndex} className="border rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="font-body font-semibold text-text text-lg">
+                        {DAYS[dayIndex]}
+                      </h3>
                       <button
-                        onClick={() => handleToggleRule(rule.id)}
-                        className={`px-3 py-1 rounded-full text-xs font-semibold ${rule.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}
+                        onClick={() => {
+                          setNewRule({ ...newRule, dayOfWeek: dayIndex, scheduleType: activeScheduleType });
+                          setShowAddRule(true);
+                        }}
+                        className="flex items-center space-x-1 px-3 py-1.5 text-sm bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition font-body"
                       >
-                        {rule.isActive ? 'Actif' : 'Inactif'}
-                      </button>
-                      <button
-                        onClick={() => setEditingRule(rule)}
-                        className="p-1.5 hover:bg-gray-100 rounded"
-                      >
-                        <Edit2 className="w-4 h-4 text-gray-600" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteRule(rule)}
-                        className="p-1.5 hover:bg-red-50 rounded"
-                      >
-                        <Trash2 className="w-4 h-4 text-red-600" />
+                        <Plus className="w-4 h-4" />
+                        <span>Ajouter</span>
                       </button>
                     </div>
+
+                    {dayRules.length === 0 ? (
+                      <p className="text-gray-400 font-body text-sm italic">Fermé ce jour</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {dayRules.map(rule => {
+                          const isEditing = editingRule?.id === rule.id;
+
+                          if (isEditing) {
+                            return (
+                              <div key={rule.id} className="flex items-center space-x-2 p-2 bg-gray-50 rounded-lg">
+                                <input
+                                  type="time"
+                                  value={editingRule.startTime}
+                                  onChange={e => setEditingRule({ ...editingRule, startTime: e.target.value })}
+                                  className="px-2 py-1 border rounded font-body text-sm"
+                                />
+                                <span className="font-body text-gray-600">-</span>
+                                <input
+                                  type="time"
+                                  value={editingRule.endTime}
+                                  onChange={e => setEditingRule({ ...editingRule, endTime: e.target.value })}
+                                  className="px-2 py-1 border rounded font-body text-sm"
+                                />
+                                <button
+                                  onClick={() => handleEditRule(editingRule)}
+                                  className="px-3 py-1 bg-primary text-white rounded text-sm font-body"
+                                >
+                                  OK
+                                </button>
+                                <button
+                                  onClick={() => setEditingRule(null)}
+                                  className="p-1 hover:bg-gray-200 rounded"
+                                >
+                                  <X className="w-4 h-4 text-gray-600" />
+                                </button>
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div key={rule.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                              <div className="flex items-center space-x-3">
+                                <span className={`font-body ${rule.isActive ? 'text-text' : 'text-gray-400 line-through'}`}>
+                                  {rule.startTime} - {rule.endTime}
+                                </span>
+                                {!rule.isActive && (
+                                  <span className="text-xs text-gray-400 font-body">(désactivé)</span>
+                                )}
+                              </div>
+                              <div className="flex items-center space-x-1">
+                                <button
+                                  onClick={() => handleToggleRule(rule.id)}
+                                  className={`px-2 py-1 rounded text-xs font-semibold transition ${
+                                    rule.isActive 
+                                      ? 'bg-green-100 text-green-700 hover:bg-green-200' 
+                                      : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                                  }`}
+                                >
+                                  {rule.isActive ? 'ON' : 'OFF'}
+                                </button>
+                                <button
+                                  onClick={() => setEditingRule(rule)}
+                                  className="p-1.5 hover:bg-gray-200 rounded"
+                                >
+                                  <Edit2 className="w-4 h-4 text-gray-500" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteRule(rule)}
+                                  className="p-1.5 hover:bg-red-100 rounded"
+                                >
+                                  <Trash2 className="w-4 h-4 text-red-500" />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 );
               })}
-              
-              {availabilityRules.length === 0 && (
-                <div className="text-center py-8">
-                  <p className="text-gray-500 font-body">Aucune disponibilité configurée</p>
-                  <p className="text-sm text-gray-400 font-body mt-1">Cliquez sur "Ajouter" pour créer votre première disponibilité</p>
-                </div>
-              )}
             </div>
 
+            {/* Modale Ajouter */}
             {showAddRule && (
-              <div className="mt-4 p-4 border-2 border-primary/20 rounded-lg bg-primary/5">
-                <h3 className="font-body font-semibold text-text mb-3">Nouvelle disponibilité</h3>
-                <div className="flex items-center space-x-3 mb-3">
-                  <select
-                    value={newRule.dayOfWeek}
-                    onChange={e => setNewRule({ ...newRule, dayOfWeek: parseInt(e.target.value) })}
-                    className="px-3 py-2 border rounded-lg font-body"
-                  >
-                    {days.map((day, idx) => (
-                      <option key={idx} value={idx}>{day}</option>
-                    ))}
-                  </select>
-                  <input
-                    type="time"
-                    value={newRule.startTime}
-                    onChange={e => setNewRule({ ...newRule, startTime: e.target.value })}
-                    className="px-3 py-2 border rounded-lg font-body"
-                  />
-                  <span className="font-body text-gray-600">-</span>
-                  <input
-                    type="time"
-                    value={newRule.endTime}
-                    onChange={e => setNewRule({ ...newRule, endTime: e.target.value })}
-                    className="px-3 py-2 border rounded-lg font-body"
-                  />
-                </div>
-                <div className="flex space-x-2">
-                  <button
-                    onClick={handleAddRule}
-                    className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition font-body"
-                  >
-                    Ajouter
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowAddRule(false);
-                      setNewRule({ dayOfWeek: 1, startTime: '09:00', endTime: '12:00' });
-                    }}
-                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition font-body"
-                  >
-                    Annuler
-                  </button>
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70] p-4">
+                <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-2xl">
+                  <h3 className="font-title text-xl font-bold text-text mb-4">
+                    Ajouter un créneau - {DAYS[newRule.dayOfWeek]}
+                  </h3>
+                  <p className="font-body text-sm text-gray-500 mb-4">
+                    {activeScheduleType === 'normal' ? 'Horaires hors vacances' : 'Horaires vacances scolaires'}
+                  </p>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block font-body text-sm font-medium text-text mb-2">Jour</label>
+                      <select
+                        value={newRule.dayOfWeek}
+                        onChange={e => setNewRule({ ...newRule, dayOfWeek: parseInt(e.target.value) })}
+                        className="w-full px-3 py-2 border rounded-lg font-body"
+                      >
+                        {WORKING_DAYS.map(dayIdx => (
+                          <option key={dayIdx} value={dayIdx}>{DAYS[dayIdx]}</option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block font-body text-sm font-medium text-text mb-2">Début</label>
+                        <input
+                          type="time"
+                          value={newRule.startTime}
+                          onChange={e => setNewRule({ ...newRule, startTime: e.target.value })}
+                          className="w-full px-3 py-2 border rounded-lg font-body"
+                        />
+                      </div>
+                      <div>
+                        <label className="block font-body text-sm font-medium text-text mb-2">Fin</label>
+                        <input
+                          type="time"
+                          value={newRule.endTime}
+                          onChange={e => setNewRule({ ...newRule, endTime: e.target.value })}
+                          className="w-full px-3 py-2 border rounded-lg font-body"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 mt-6">
+                    <button
+                      onClick={() => {
+                        setShowAddRule(false);
+                        setNewRule({ dayOfWeek: 3, startTime: '09:00', endTime: '12:00', scheduleType: activeScheduleType });
+                      }}
+                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition font-body"
+                    >
+                      Annuler
+                    </button>
+                    <button
+                      onClick={handleAddRule}
+                      className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition font-body"
+                    >
+                      Ajouter
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
           </div>
-
-          {/* ⚠️ SECTION COMMENTÉE : Templates emails - Non utilisés dans l'application
-          <div className="bg-white rounded-lg shadow-sm border p-6">
-            <h2 className="font-title text-2xl font-bold text-text mb-4">Modèles d'emails</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block font-body text-sm font-medium text-text mb-2">
-                  Confirmation de rendez-vous
-                </label>
-                <textarea
-                  value={settings.emailTemplates.appointmentConfirmation}
-                  onChange={e => setSettings({
-                    ...settings,
-                    emailTemplates: { ...settings.emailTemplates, appointmentConfirmation: e.target.value }
-                  })}
-                  rows={4}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent font-body text-sm"
-                />
-              </div>
-              <div>
-                <label className="block font-body text-sm font-medium text-text mb-2">
-                  Rappel de rendez-vous
-                </label>
-                <textarea
-                  value={settings.emailTemplates.appointmentReminder}
-                  onChange={e => setSettings({
-                    ...settings,
-                    emailTemplates: { ...settings.emailTemplates, appointmentReminder: e.target.value }
-                  })}
-                  rows={4}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent font-body text-sm"
-                />
-              </div>
-            </div>
-          </div>
-
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex items-center space-x-2 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition font-body disabled:opacity-50"
-          >
-            <Save className="w-4 h-4" />
-            <span>{saving ? 'Enregistrement...' : 'Enregistrer les paramètres emails'}</span>
-          </button>
-          */}
         </div>
 
-        {/* ✅ NOUVELLE MODALE : Confirmation de suppression */}
+        {/* Modale de confirmation de suppression */}
         {showDeleteModal && ruleToDelete && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70] p-4">
             <div className="bg-white rounded-lg p-8 max-w-md w-full shadow-2xl">
-              {/* Icône d'alerte */}
               <div className="flex justify-center mb-6">
                 <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center">
                   <Trash2 className="w-12 h-12 text-red-600" />
                 </div>
               </div>
 
-              {/* Titre */}
               <h3 className="font-title text-2xl font-bold text-text text-center mb-2">
-                Supprimer cette disponibilité ?
+                Supprimer ce créneau ?
               </h3>
 
-              {/* Message */}
               <p className="font-body text-center text-gray-600 mb-6">
-                Cette action est irréversible. Cette plage horaire sera définitivement supprimée.
+                Cette action est irréversible.
               </p>
 
-              {/* Détails de la règle */}
               <div className="bg-red-50 border-l-4 border-red-500 rounded-lg p-4 mb-6">
-                <p className="font-body text-sm text-gray-700 mb-2">
-                  <strong>Jour :</strong> {days[ruleToDelete.dayOfWeek]}
+                <p className="font-body text-sm text-gray-700 mb-1">
+                  <strong>Jour :</strong> {DAYS[ruleToDelete.dayOfWeek]}
+                </p>
+                <p className="font-body text-sm text-gray-700 mb-1">
+                  <strong>Horaire :</strong> {ruleToDelete.startTime} - {ruleToDelete.endTime}
                 </p>
                 <p className="font-body text-sm text-gray-700">
-                  <strong>Horaire :</strong> {ruleToDelete.startTime} - {ruleToDelete.endTime}
+                  <strong>Type :</strong> {ruleToDelete.scheduleType === 'normal' ? 'Hors vacances' : 'Vacances scolaires'}
                 </p>
               </div>
 
-              {/* Boutons */}
               <div className="flex gap-3">
                 <button
                   onClick={() => {
@@ -522,4 +549,5 @@ export function AdminSettings() {
     </div>
   );
 }
+
 

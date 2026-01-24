@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, Clock, ChevronLeft, ChevronRight, CheckCircle, Info, LogIn, User } from 'lucide-react';
-import { dataAdapter, type AvailableSlot } from '../lib/data';
+import { dataAdapter, type AvailableSlot, type AvailabilityRule } from '../lib/data';
 import { addDays, startOfWeek, format, parseISO } from '../lib/utils/date';
 import { sendNewAppointmentNotification } from '../lib/email';
 import { useAuth } from '../contexts/AuthContext';
@@ -11,7 +11,7 @@ import {
   CALENDAR_COLORS,
 } from '../lib/appointment';
 import type { AppointmentType } from '../lib/appointment';
-import { getDayInfo } from '../lib/appointment/availabilityService';
+import { getDayInfo, convertRulesToSchedules, type DynamicSchedules } from '../lib/appointment/availabilityService';
 
 interface BookingCalendarProps {
   onBookingComplete?: () => void;
@@ -36,6 +36,7 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
   const [selectedSlot, setSelectedSlot] = useState<AvailableSlot | null>(null);
   const [selectedType, setSelectedType] = useState<AppointmentType>('premier_rdv');
   const [loading, setLoading] = useState(true);
+  const [schedules, setSchedules] = useState<DynamicSchedules | undefined>(undefined);
   const [bookingData, setBookingData] = useState({
     firstName: '',
     lastName: '',
@@ -57,6 +58,21 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
   // Vérifier si le type sélectionné nécessite d'être connecté
   const requiresLogin = selectedType === 'remediation';
   const isLoggedIn = !!user;
+
+  // Charger les schedules au montage
+  useEffect(() => {
+    const loadSchedules = async () => {
+      try {
+        const rules = await dataAdapter.availabilityRules.getAll();
+        const activeRules = rules.filter((r: AvailabilityRule) => r.isActive);
+        const convertedSchedules = convertRulesToSchedules(activeRules);
+        setSchedules(convertedSchedules);
+      } catch (error) {
+        console.error('Error loading schedules:', error);
+      }
+    };
+    loadSchedules();
+  }, []);
 
   useEffect(() => {
     loadAvailableSlots();
@@ -271,10 +287,10 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
     return availableSlots.filter(slot => slot.date === dateStr);
   };
 
-  // Récupérer les infos du jour pour l'affichage
+  // Récupérer les infos du jour pour l'affichage (avec schedules dynamiques)
   const getDayDisplayInfo = (date: Date) => {
     const dateStr = format(date, 'yyyy-MM-dd');
-    return getDayInfo(dateStr);
+    return getDayInfo(dateStr, schedules);
   };
 
   const weekDays = getWeekDays();
@@ -871,6 +887,7 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
     </div>
   );
 }
+
 
 
 
