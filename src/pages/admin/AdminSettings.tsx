@@ -14,7 +14,8 @@ const getSupabaseClient = () => {
 };
 
 const DAYS = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
-const WORKING_DAYS = [3, 4, 6]; // Mercredi, Jeudi, Samedi
+// Tous les jours de la semaine dans l'ordre Lundi -> Dimanche
+const ALL_WEEK_DAYS = [1, 2, 3, 4, 5, 6, 0];
 
 export function AdminSettings() {
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -178,12 +179,12 @@ export function AdminSettings() {
     }
   };
 
-  // Filtrer les règles par type
+  // Filtrer les règles par type (IMPORTANT: chaque type a ses propres règles)
   const normalRules = availabilityRules.filter(r => r.scheduleType === 'normal');
   const exceptionalRules = availabilityRules.filter(r => r.scheduleType === 'exceptional');
   const currentRules = activeScheduleType === 'normal' ? normalRules : exceptionalRules;
 
-  // Grouper les règles par jour
+  // Grouper les règles par jour (seulement pour le type actif)
   const rulesByDay = currentRules.reduce((acc, rule) => {
     if (!acc[rule.dayOfWeek]) {
       acc[rule.dayOfWeek] = [];
@@ -319,15 +320,16 @@ export function AdminSettings() {
               </p>
             </div>
 
-            {/* Liste des jours travaillés */}
+            {/* Liste de TOUS les jours de la semaine */}
             <div className="space-y-4">
-              {WORKING_DAYS.map(dayIndex => {
+              {ALL_WEEK_DAYS.map(dayIndex => {
                 const dayRules = rulesByDay[dayIndex] || [];
+                const hasRules = dayRules.length > 0;
                 
                 return (
-                  <div key={dayIndex} className="border rounded-lg p-4">
+                  <div key={dayIndex} className={`border rounded-lg p-4 ${!hasRules ? 'bg-gray-50/50' : ''}`}>
                     <div className="flex items-center justify-between mb-3">
-                      <h3 className="font-body font-semibold text-text text-lg">
+                      <h3 className={`font-body font-semibold text-lg ${hasRules ? 'text-text' : 'text-gray-400'}`}>
                         {DAYS[dayIndex]}
                       </h3>
                       <button
@@ -444,7 +446,7 @@ export function AdminSettings() {
                         onChange={e => setNewRule({ ...newRule, dayOfWeek: parseInt(e.target.value) })}
                         className="w-full px-3 py-2 border rounded-lg font-body"
                       >
-                        {WORKING_DAYS.map(dayIdx => (
+                        {ALL_WEEK_DAYS.map(dayIdx => (
                           <option key={dayIdx} value={dayIdx}>{DAYS[dayIdx]}</option>
                         ))}
                       </select>
@@ -549,5 +551,6 @@ export function AdminSettings() {
     </div>
   );
 }
+
 
 
