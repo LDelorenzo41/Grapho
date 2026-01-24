@@ -202,7 +202,7 @@ export function AdminDashboard() {
       `📧 Votre email de connexion : ${client.email}\n` +
       `🔑 Votre mot de passe provisoire : Grapho2025\n\n` +
       `⚠️ Pour des raisons de sécurité, vous devrez changer votre mot de passe lors de votre première connexion.\n\n` +
-      `Lien de connexion : [VOTRE_URL_DE_CONNEXION]\n\n` +
+      `Lien de connexion : https://philippinecornet.com\n\n` +
       `N'hésitez pas à me contacter si vous avez la moindre question.\n\n` +
       `Cordialement,\n` +
       `Philippine Cornet`;
