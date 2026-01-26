@@ -64,7 +64,8 @@ export function Pricing() {
     </li>
     <li className="flex items-start">
       <Check className="w-5 h-5 text-primary mr-2 mt-0.5 flex-shrink-0" />
-      <span>Retour sur le déroulement de la séance et les progrès observés</span>
+      <span>Résumé de la séance, progrès observés et objectifs :
+remarques disponibles directement sur votre espace en ligne !</span>
     </li>
     <li className="flex items-start">
       <Check className="w-5 h-5 text-primary mr-2 mt-0.5 flex-shrink-0" />

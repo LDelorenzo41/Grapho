@@ -16,7 +16,8 @@ export function Home() {
 
             </h1>
             <p className="font-body text-xl text-gray-700 mb-8 max-w-3xl mx-auto">
-              Un accompagnement personnalisé en graphothérapie pour les enfants et adultes qui souhaitent améliorer leur écriture et retrouver le plaisir d'écrire, avec confort et confiance
+              Un accompagnement personnalisé en graphothérapie pour les enfants et adultes qui souhaitent améliorer leur écriture et retrouver une écriture lisible,
+fluide et confortable.
             </p>
             <Link
               to="/contact"
@@ -31,11 +32,11 @@ export function Home() {
               <div className="order-2 md:order-1 p-8 md:p-12">
                 <h2 className="font-title text-3xl font-bold text-text mb-6">
                   Philippine Cornet
-                  <span className="block text-xl text-primary mt-2">Graphothérapeute diplômée</span>
+                  <span className="block text-xl text-primary mt-2">Graphothérapeute certifiée</span>
                 </h2>
                 <div className="font-body text-gray-700 space-y-4 leading-relaxed">
                   <p>
-                    Je suis Philippine Cornet, graphothérapeute diplômée. Je mets mon sens de l’écoute et mon expérience d’enseignante au service de celles et ceux qui souhaitent retrouver le plaisir d’écrire.
+                    Je suis Philippine Cornet, graphothérapeute certifiée. Je mets mon sens de l’écoute et mon expérience d’enseignante au service de celles et ceux qui souhaitent retrouver une écriture efficiente.
                   </p>
                   <p>
                     Ancienne professeure d’éducation musicale, j’allie rigueur, douceur et pédagogie pour accompagner chaque enfant — ou adulte — à développer une écriture fluide, lisible et apaisée.
@@ -81,7 +82,7 @@ export function Home() {
               </div>
               <h3 className="font-title text-xl font-bold text-text mb-3">1. Prise de rendez-vous</h3>
               <p className="font-body text-gray-600">
-                Contactez-nous pour fixer un premier rendez-vous adapté à vos disponibilités.
+                Contactez-moi pour fixer un premier rendez-vous adapté à vos disponibilités.
               </p>
             </div>
 
@@ -91,7 +92,7 @@ export function Home() {
               </div>
               <h3 className="font-title text-xl font-bold text-text mb-3">2. Bilan initial</h3>
               <p className="font-body text-gray-600">
-                Évaluation complète de l'écriture et définition d'objectifs personnalisés.
+                Évaluation complète de l'écriture manuscrite.
               </p>
             </div>
 
@@ -99,9 +100,9 @@ export function Home() {
               <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/10 rounded-full mb-4">
                 <Mail className="w-8 h-8 text-primary" />
               </div>
-              <h3 className="font-title text-xl font-bold text-text mb-3">3. Suivi régulier</h3>
+              <h3 className="font-title text-xl font-bold text-text mb-3">3. Séances de remédiation</h3>
               <p className="font-body text-gray-600">
-                Séances hebdomadaires avec exercices adaptés et suivi des progrès.
+                Séances régulières avec exercices adaptés et suivi des progrès.
               </p>
             </div>
           </div>
@@ -130,7 +131,8 @@ export function Home() {
               <div className="order-2 p-8 md:p-12">
                 <div className="font-body text-lg text-gray-700 space-y-4">
                   <p>
-                    La graphothérapie est une rééducation de l'écriture manuscrite.
+                    La graphothérapie est une pratique
+d’accompagnement du geste graphique.
                     Elle s'adresse aux enfants, adolescents et adultes qui rencontrent des difficultés d'écriture :
                     lenteur, douleurs, illisibilité, fatigue...
                   </p>
@@ -166,28 +168,28 @@ export function Home() {
               <div className="order-2 md:order-1 p-8 md:p-12">
                 <div className="font-body text-lg text-gray-700 space-y-4">
                   <p>
-                    Il peut être utile de consulter un graphothérapeute si vous ou votre enfant :
+                    Il peut être utile de consulter un graphothérapeute dans les cas de :
                   </p>
                   <ul className="space-y-3">
                     <li className="flex items-start">
                       <span className="text-primary mr-3 mt-1">•</span>
-                      <span>Ressentez de la douleur, de la tension ou de la fatigue en écrivant ;</span>
+                      <span>Douleurs, tensions, fatigue ;</span>
                     </li>
                     <li className="flex items-start">
                       <span className="text-primary mr-3 mt-1">•</span>
-                      <span>Trouvez que l'écriture est difficile à lire ou trop lente ;</span>
+                      <span>Manque de lisibilité ;</span>
                     </li>
                     <li className="flex items-start">
                       <span className="text-primary mr-3 mt-1">•</span>
-                      <span>Avez du mal à tenir correctement le crayon ;</span>
+                      <span>Lenteur ou précipitation de l’écriture ;</span>
                     </li>
                     <li className="flex items-start">
                       <span className="text-primary mr-3 mt-1">•</span>
-                      <span>Manquez de plaisir ou de confiance dans l'acte d'écrire.</span>
+                      <span>Anxiété, refus d’écrire.</span>
                     </li>
                   </ul>
                   <p className="pt-2">
-                    Chaque difficulté est unique. Le rôle du graphothérapeute est de comprendre l'origine du problème et de proposer un accompagnement sur mesure, toujours dans la douceur et la bienveillance.
+                    Chaque difficulté est unique. Le rôle du graphothérapeute est d’en comprendre son origine et de proposer un accompagnement sur mesure, toujours dans la douceur et la bienveillance.
                   </p>
                 </div>
               </div>

@@ -11,19 +11,19 @@ interface SEOProps {
 
 const defaultSEO = {
   title: 'Philippine Cornet - Graphothérapeute à Chargé (37)',
-  description: 'Graphothérapeute diplômée à Chargé près d\'Amboise. Rééducation de l\'écriture pour enfants, adolescents et adultes.',
+  description: 'Graphothérapeute certifiée à Chargé près d\'Amboise. remédiation de l\'écriture pour enfants, adolescents et adultes.',
   image: 'https://philippinecornet.com/og-image.jpg',
   type: 'website',
 };
 
 const pageSEO: Record<string, SEOProps> = {
   '/': {
-    title: 'Philippine Cornet - Graphothérapeute à Chargé (37) | Rééducation de l\'écriture',
-    description: 'Graphothérapeute diplômée à Chargé près d\'Amboise (37). Rééducation de l\'écriture pour enfants, adolescents et adultes. Bilan graphomoteur, séances personnalisées.',
+    title: 'Philippine Cornet - Graphothérapeute à Chargé (37) | remédiation de l\'écriture',
+    description: 'Graphothérapeute certifiée à Chargé près d\'Amboise (37). remédiation de l\'écriture pour enfants, adolescents et adultes. Bilan graphomoteur, séances personnalisées.',
   },
   '/methode': {
     title: 'La Méthode de Graphothérapie | Philippine Cornet Graphothérapeute',
-    description: 'Découvrez la méthode de graphothérapie : rééducation de l\'écriture pour enfants, adolescents et adultes. Bilan initial, séances de rééducation et suivi personnalisé à Chargé (37).',
+    description: 'Découvrez la méthode de graphothérapie : remédiation de l\'écriture pour enfants, adolescents et adultes. Bilan initial, séances de remédiation et suivi personnalisé à Chargé (37).',
   },
   '/tarifs': {
     title: 'Tarifs Graphothérapie - Bilan et Séances | Philippine Cornet',

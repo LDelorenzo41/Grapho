@@ -180,7 +180,7 @@ export function Contact() {
                     <div>
                       <p className="font-body text-sm text-gray-600">Téléphone</p>
                       <a href="tel:0612345678" className="font-body text-text hover:text-primary transition">
-                        06 12 34 56 78
+                        06 38 60 30 14
                       </a>
                     </div>
                   </div>
