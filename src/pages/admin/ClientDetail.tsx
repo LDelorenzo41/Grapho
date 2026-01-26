@@ -355,7 +355,7 @@ export function ClientDetail() {
               {/* Sélecteur de statut */}
               <div className="bg-white/20 rounded-lg p-3 backdrop-blur-sm">
                 <label className="block font-body text-xs opacity-80 mb-2">
-                  Statut de la rééducation
+                  Statut de la remédiation
                 </label>
                 <select
                   value={client.status || 'active'}

@@ -38,7 +38,7 @@ export function BioModal({ isOpen, onClose }: BioModalProps) {
             />
             <div className="min-w-0 flex-1">
               <h2 className="font-title text-lg sm:text-2xl font-bold text-text truncate">Philippine Cornet</h2>
-              <p className="text-primary font-body text-sm sm:text-base">Graphothérapeute diplômée</p>
+              <p className="text-primary font-body text-sm sm:text-base">Graphothérapeute certifiée</p>
             </div>
           </div>
           <button
@@ -79,7 +79,7 @@ export function BioModal({ isOpen, onClose }: BioModalProps) {
                   Redonner à chacun le plaisir d'écrire, avec confort et confiance
                 </h3>
                 <p>
-                  Je suis Philippine Cornet, graphothérapeute, spécialiste de la rééducation de l'écriture manuscrite, 
+                  Je suis Philippine Cornet, graphothérapeute, spécialiste de la remédiation de l'écriture manuscrite, 
                   passionnée par le geste d'écriture et tout ce qu'il raconte de nous. Derrière chaque écriture, il y a 
                   une histoire, une émotion, une manière singulière d'être au monde. C'est cette richesse que je cherche 
                   à accueillir et à accompagner, pour la révéler.
@@ -90,8 +90,7 @@ export function BioModal({ isOpen, onClose }: BioModalProps) {
             {activeTab === 'approach' && (
               <div className="space-y-4 sm:space-y-6">
                 <p>
-                  La graphothérapie s'appuie sur des connaissances en motricité fine, ergonomie et apprentissage du geste 
-                  graphique. Elle permet d'agir à la fois sur les aspects techniques (tenue du crayon, posture) et sur les 
+                  La graphothérapie s'appuie sur des connaissances en motricité fine, ergonomie et geste graphique. Elle permet d'agir à la fois sur les aspects techniques (tenue du crayon, posture) et sur les 
                   dimensions émotionnelles liées à l'acte d'écrire. J'accorde une grande importance au lien de confiance et 
                   à la progression en douceur, car c'est dans la sécurité et la bienveillance que les changements s'installent 
                   durablement.
@@ -111,7 +110,7 @@ export function BioModal({ isOpen, onClose }: BioModalProps) {
                     <li className="flex gap-2 sm:gap-3">
                       <span className="text-primary font-bold flex-shrink-0">•</span>
                       <span>
-                        <strong>La rééducation personnalisée,</strong> adaptée à l'âge, au profil et aux besoins de chacun
+                        <strong>La remédiation personnalisée,</strong> adaptée à l'âge, au profil et aux besoins de chacun
                       </span>
                     </li>
                     <li className="flex gap-2 sm:gap-3">
@@ -137,8 +136,8 @@ export function BioModal({ isOpen, onClose }: BioModalProps) {
                   auprès de Nisaba Formation afin d'aider les enfants, adolescents et adultes à renouer avec leur écriture.
                 </p>
                 <p>
-                  Mon parcours initial d'enseignante m'a permis de me rendre compte du besoin énorme des élèves de renouer 
-                  avec une écriture libre, tant pour se faire comprendre que pour se faire confiance eux-mêmes. J'ai su 
+                  Mon parcours initial d'enseignante m'a permis de me rendre compte du besoin des élèves de renouer 
+                  avec une écriture libre, tant pour se faire comprendre que pour se faire confiance eux-mêmes. J'ai à coeur de 
                   développer une approche globale du geste d'écriture, à la croisée du physique et du mental.
                 </p>
                 <p>

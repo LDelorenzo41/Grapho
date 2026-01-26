@@ -29,7 +29,7 @@ export function Privacy() {
             <p>Vos données sont utilisées pour :</p>
             <ul className="list-disc list-inside space-y-2">
               <li>La gestion de vos rendez-vous</li>
-              <li>Le suivi de votre rééducation graphique</li>
+              <li>Le suivi de votre remédiation graphique</li>
               <li>La communication relative à vos séances</li>
               <li>L'établissement de factures et documents administratifs</li>
             </ul>

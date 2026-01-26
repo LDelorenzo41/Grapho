@@ -4,15 +4,12 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 const faqs = [
   {
     question: 'À partir de quel âge peut-on consulter un graphothérapeute ?',
-    answer: 'La graphothérapie peut être proposée dès 6-7 ans, lorsque l\'enfant a commencé l\'apprentissage de l\'écriture. Il n\'y a pas d\'âge maximum : adolescents et adultes peuvent également bénéficier d\'une rééducation de l\'écriture.',
+    answer: 'La graphothérapie peut être proposée dès 6-7 ans, lorsque l\'enfant a commencé l\'apprentissage de l\'écriture. Il n\'y a pas d\'âge maximum : adolescents et adultes peuvent également bénéficier d\'une remédiation de l\'écriture.',
   },
-  {
-    question: 'Combien de séances sont nécessaires ?',
-    answer: 'En moyenne, 15 à 20 séances suffisent pour constater des progrès significatifs. Cette durée varie selon l\'âge, les difficultés rencontrées et l\'assiduité aux exercices à la maison.',
-  },
+  
   {
     question: 'La graphothérapie est-elle remboursée ?',
-    answer: 'La graphothérapie n\'est pas remboursée par la Sécurité sociale. Cependant, certaines mutuelles prennent en charge tout ou partie des séances au titre des médecines douces. Nous vous invitons à vous renseigner auprès de votre mutuelle.',
+    answer: 'La graphothérapie n\'est pas remboursée par la Sécurité sociale. Cependant, certaines mutuelles prennent en charge tout ou partie des séances au titre des médecines douces. Je vous invite à vous renseigner auprès de votre mutuelle.',
   },
   {
     question: 'La graphothérapie remplace-t-elle un suivi orthophonique ou psychomoteur ?',
@@ -20,7 +17,7 @@ const faqs = [
   },
   {
     question: 'Quelle est la différence entre un graphothérapeute et un ergothérapeute ?',
-    answer: 'Le graphothérapeute est spécialisé uniquement dans la rééducation de l\'écriture manuscrite. L\'ergothérapeute a un champ d\'action plus large et intervient sur l\'ensemble des gestes du quotidien. Les deux professionnels peuvent travailler en complémentarité.',
+    answer: 'Le graphothérapeute est spécialisé uniquement dans la remédiation de l\'écriture manuscrite. L\'ergothérapeute a un champ d\'action plus large et intervient sur l\'ensemble des gestes du quotidien. Les deux professionnels peuvent travailler en complémentarité.',
   },
   {
     question: 'Faut-il une prescription médicale ?',
@@ -29,12 +26,9 @@ const faqs = [
 
 {
     question: 'Faut-il être « mauvais en écriture » pour consulter ?',
-    answer: 'Non. Certaines personnes consultent simplement pour améliorer leur confort ou leur vitesse d’écriture.',
+    answer: 'Non. Par exemple, certaines personnes ayant une écriture visuellement harmonieuse ont recours à la graphothérapie seulement pour augmenter leur rythme d\'écriture, souvent lent. Toutes les problématiques sont bonnes à étudier !',
   },
-  {
-    question: 'Mon enfant peut-il continuer à écrire pendant la rééducation ?',
-    answer: 'Oui, votre enfant continue à écrire normalement à l\'école. Les exercices de graphothérapie viennent en complément et permettent progressivement d\'améliorer son écriture au quotidien.',
-  },
+  
 ];
 
 export function FAQ() {
