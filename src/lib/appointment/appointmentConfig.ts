@@ -260,29 +260,16 @@ export const BLOCKED_DATES: string[] = [
   // Mars 2026
   '2026-03-07', // Samedi
   '2026-03-14', // Samedi (Installation)
-  '2026-03-21', // Samedi
-  '2026-03-28', // Samedi
+
   
-  // Avril 2026
-  '2026-04-04', // Samedi
-  '2026-04-11', // Samedi
-  '2026-04-18', // Samedi
-  '2026-04-25', // Samedi
+
   
   // Mai 2026
   '2026-05-01', // Vendredi (Férié - Fête du Travail)
   '2026-05-08', // Vendredi (Férié - Victoire 1945)
-  '2026-05-02', // Samedi
-  '2026-05-09', // Samedi
-  '2026-05-16', // Samedi
-  '2026-05-23', // Samedi
-  '2026-05-30', // Samedi
+
   
-  // Juin 2026
-  '2026-06-06', // Samedi
-  '2026-06-13', // Samedi
-  '2026-06-20', // Samedi
-  '2026-06-27', // Samedi
+
 ];
 
 // ============================================================================
