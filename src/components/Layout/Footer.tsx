@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { Instagram } from 'lucide-react';
 
 export function Footer() {
   return (
@@ -10,6 +11,20 @@ export function Footer() {
             <p className="font-body text-sm text-gray-600">
               Accompagnement personnalisé pour améliorer l'écriture et retrouver le plaisir d'écrire.
             </p>
+            <div className="mt-4">
+              <h4 className="font-title text-sm font-bold text-text mb-3">Réseaux sociaux</h4>
+              <div className="flex items-center gap-3">
+                <a
+                  href="https://www.instagram.com/philippinecornet.grapho?igsh=bm8yMGZtZWc4OWh4"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-gray-600 hover:text-primary transition"
+                  aria-label="Instagram"
+                >
+                  <Instagram className="w-5 h-5" />
+                </a>
+              </div>
+            </div>
           </div>
 
           <div>
@@ -64,3 +79,4 @@ export function Footer() {
     </footer>
   );
 }
+
