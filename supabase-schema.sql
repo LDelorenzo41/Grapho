@@ -132,12 +132,14 @@ CREATE TABLE availability_rules (
     start_time TIME NOT NULL,
     end_time TIME NOT NULL,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    schedule_type VARCHAR NOT NULL DEFAULT 'normal' CHECK (schedule_type IN ('normal', 'exceptional')),
     CONSTRAINT valid_time_range CHECK (end_time > start_time)
 );
 
 -- Index pour les recherches fréquentes
 CREATE INDEX idx_availability_rules_day_of_week ON availability_rules(day_of_week);
 CREATE INDEX idx_availability_rules_is_active ON availability_rules(is_active);
+CREATE INDEX idx_availability_rules_schedule_type ON availability_rules(schedule_type);
 
 -- ============================================
 -- TABLE: settings
@@ -621,3 +623,4 @@ VALUES
 -- ============================================
 -- FIN DU SCHÉMA
 -- ============================================
+
