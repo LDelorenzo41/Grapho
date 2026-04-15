@@ -55,8 +55,11 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
     type: AppointmentType;
   } | null>(null);
 
+  // Config du type sélectionné (utilisé dans toute la logique ci-dessous)
+  const selectedTypeConfig = APPOINTMENT_TYPES[selectedType];
+
   // Vérifier si le type sélectionné nécessite d'être connecté
-  const requiresLogin = selectedType === 'remediation';
+  const requiresLogin = selectedTypeConfig.requiresLogin ?? false;
   const isLoggedIn = !!user;
 
   // Charger les schedules au montage
@@ -294,7 +297,6 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
   };
 
   const weekDays = getWeekDays();
-  const selectedTypeConfig = APPOINTMENT_TYPES[selectedType];
 
   if (loading) {
     return (
@@ -315,8 +317,8 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
           {ONLINE_BOOKABLE_TYPES.map((typeId) => {
             const config = APPOINTMENT_TYPES[typeId];
             const isSelected = selectedType === typeId;
-            const needsLogin = typeId === 'remediation';
-            
+            const needsLogin = config.requiresLogin ?? false;
+
             return (
               <button
                 key={typeId}
@@ -331,9 +333,9 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
                   <span className="font-body font-semibold text-text">
                     {config.label}
                   </span>
-                  <span 
+                  <span
                     className="px-2 py-1 rounded text-xs font-semibold"
-                    style={{ 
+                    style={{
                       backgroundColor: isSelected ? CALENDAR_COLORS.available : '#E5E7EB',
                       color: isSelected ? 'white' : '#6B7280'
                     }}
@@ -344,9 +346,15 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
                 <p className="font-body text-sm text-gray-600">
                   {config.description}
                 </p>
+                {config.additionalNote && (
+                  <div className="mt-2 flex items-center gap-1 text-xs text-gray-600">
+                    <Info className="w-3 h-3 flex-shrink-0" />
+                    <span>{config.additionalNote}</span>
+                  </div>
+                )}
                 {needsLogin && (
                   <div className="mt-2 flex items-center gap-1 text-xs text-amber-700">
-                    <LogIn className="w-3 h-3" />
+                    <LogIn className="w-3 h-3 flex-shrink-0" />
                     <span>Réservé aux clients existants</span>
                   </div>
                 )}
@@ -354,20 +362,8 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
             );
           })}
         </div>
-        
-        {/* Info sur le bilan */}
-        <div 
-          className="mt-4 p-3 rounded-lg flex items-start gap-3"
-          style={{ backgroundColor: `${CALENDAR_COLORS.accent}20` }}
-        >
-          <Info className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: CALENDAR_COLORS.unavailable }} />
-          <p className="font-body text-sm text-gray-700">
-            <strong>Bilan complet :</strong> La prise de rendez-vous pour un bilan s'effectue 
-            lors de votre premier rendez-vous de rencontre au cabinet.
-          </p>
-        </div>
 
-        {/* Info si séance de remédiation sélectionnée */}
+        {/* Info si le type sélectionné nécessite une connexion */}
         {requiresLogin && (
           <div 
             className="mt-4 p-3 rounded-lg flex items-start gap-3"
@@ -377,17 +373,17 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
               <>
                 <User className="w-5 h-5 flex-shrink-0 mt-0.5 text-green-600" />
                 <p className="font-body text-sm text-green-800">
-                  <strong>Connecté en tant que {user?.firstName} {user?.lastName}</strong> - 
-                  Vous pouvez réserver une séance de remédiation.
+                  <strong>Connecté en tant que {user?.firstName} {user?.lastName}</strong> —
+                  vous pouvez réserver ce type de rendez-vous.
                 </p>
               </>
             ) : (
               <>
                 <LogIn className="w-5 h-5 flex-shrink-0 mt-0.5 text-amber-600" />
                 <p className="font-body text-sm text-amber-800">
-                  <strong>Connexion requise :</strong> La séance de remédiation est réservée aux clients 
-                  ayant déjà eu un premier rendez-vous. 
-                  <button 
+                  <strong>Connexion requise :</strong> ce type de rendez-vous est réservé aux clients
+                  ayant déjà eu un premier rendez-vous.
+                  <button
                     onClick={() => navigate('/connexion')}
                     className="ml-1 underline hover:no-underline font-semibold"
                   >
@@ -524,12 +520,12 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
         })}
       </div>
 
-      {/* Modale de prompt de connexion (pour séance de remédiation) */}
+      {/* Modale de prompt de connexion (types réservés aux clients existants) */}
       {showLoginPrompt && selectedSlot && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg p-6 max-w-md w-full">
             <div className="flex justify-center mb-6">
-              <div 
+              <div
                 className="w-16 h-16 rounded-full flex items-center justify-center"
                 style={{ backgroundColor: '#FEF3C7' }}
               >
@@ -542,9 +538,9 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
             </h3>
 
             <p className="font-body text-center text-gray-600 mb-6">
-              Pour réserver une <strong>séance de remédiation</strong>, vous devez être connecté 
-              à votre espace client. Ce type de rendez-vous est réservé aux patients ayant déjà 
-              eu un premier rendez-vous.
+              Pour réserver <strong>{selectedTypeConfig.label.toLowerCase()}</strong>, vous devez être
+              connecté à votre espace client. Ce type de rendez-vous est réservé aux patients ayant
+              déjà eu un premier rendez-vous.
             </p>
 
             <div 
@@ -887,6 +883,10 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
     </div>
   );
 }
+
+
+
+
 
 
 
