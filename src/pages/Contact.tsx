@@ -270,25 +270,32 @@ export function Contact() {
                   <p className="font-body text-sm font-semibold text-text mb-2">Types de rendez-vous :</p>
                   <div className="space-y-1 font-body text-sm text-gray-600">
                     <div className="flex items-center gap-2">
-                      <span 
+                      <span
                         className="w-2 h-2 rounded-full"
                         style={{ backgroundColor: CALENDAR_COLORS.available }}
                       />
                       <span>Premier rendez-vous : 30 minutes</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span 
+                      <span
                         className="w-2 h-2 rounded-full"
                         style={{ backgroundColor: CALENDAR_COLORS.available }}
                       />
-                      <span>Séance de remédiation : 1 heure</span>
+                      <span>Séance de remédiation : 1h</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span 
+                      <span
                         className="w-2 h-2 rounded-full"
-                        style={{ backgroundColor: CALENDAR_COLORS.accent }}
+                        style={{ backgroundColor: CALENDAR_COLORS.available }}
                       />
-                      <span>Bilan : sur rendez-vous au cabinet</span>
+                      <span>Restitution du bilan : 1h</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="w-2 h-2 rounded-full"
+                        style={{ backgroundColor: CALENDAR_COLORS.available }}
+                      />
+                      <span>Séance découverte : 1h</span>
                     </div>
                   </div>
                 </div>
