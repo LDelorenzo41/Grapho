@@ -19,10 +19,15 @@
 /**
  * Types de rendez-vous disponibles
  * - 'premier_rdv' : Premier rendez-vous / Rencontre (30 min) - Réservable en ligne
- * - 'remediation' : Séance de remédiation / bien-être (60 min) - Réservable en ligne
- * - 'bilan' : Bilan complet - NON réservable en ligne (pris lors du 1er RDV)
+ * - 'remediation' : Séance de remédiation (60 min) - Réservable en ligne, clients existants uniquement
+ * - 'seance_decouverte' : Séance découverte de la graphothérapie (60 min) - Réservable en ligne
+ * - 'restitution_bilan' : Restitution du bilan (60 min) - Réservable en ligne, clients existants uniquement
  */
-export type AppointmentType = 'premier_rdv' | 'remediation' | 'bilan';
+export type AppointmentType =
+  | 'premier_rdv'
+  | 'remediation'
+  | 'seance_decouverte'
+  | 'restitution_bilan';
 
 export interface AppointmentTypeConfig {
   id: AppointmentType;
@@ -32,6 +37,17 @@ export interface AppointmentTypeConfig {
   slots: number; // nombre de créneaux de 30 min nécessaires
   bookableOnline: boolean;
   description: string;
+  /**
+   * Si true, la réservation de ce type nécessite d'être connecté
+   * (réservé aux clients existants). Sinon, un compte peut être créé
+   * lors de la prise de rendez-vous.
+   */
+  requiresLogin?: boolean;
+  /**
+   * Note additionnelle affichée dans la vignette (ex. "Une séance par personne").
+   * Purement informatif — aucune contrainte n'est appliquée côté code.
+   */
+  additionalNote?: string;
 }
 
 export const APPOINTMENT_TYPES: Record<AppointmentType, AppointmentTypeConfig> = {
@@ -42,7 +58,8 @@ export const APPOINTMENT_TYPES: Record<AppointmentType, AppointmentTypeConfig> =
     duration: 30,
     slots: 1,
     bookableOnline: true,
-    description: 'Première rencontre pour faire connaissance et définir vos besoins.',
+    description:
+      'Première rencontre pour faire connaissance, identifier votre besoin (problématique, bilan, accompagnement ponctuel …) et débuter l\'anamnèse.',
   },
   remediation: {
     id: 'remediation',
@@ -51,21 +68,39 @@ export const APPOINTMENT_TYPES: Record<AppointmentType, AppointmentTypeConfig> =
     duration: 60,
     slots: 2,
     bookableOnline: true,
-    description: 'Séance de remédiation cognitive ou de bien-être (1 heure).',
+    description: 'Séance de remédiation adaptée à la problématique identifiée.',
+    requiresLogin: true,
   },
-  bilan: {
-    id: 'bilan',
-    label: 'Bilan complet',
-    labelShort: 'Bilan',
-    duration: 0, // Variable, géré en cabinet
-    slots: 0,
-    bookableOnline: false,
-    description: 'Bilan complet - Prise de rendez-vous lors de la première rencontre.',
+  seance_decouverte: {
+    id: 'seance_decouverte',
+    label: 'Séance découverte',
+    labelShort: 'Découverte',
+    duration: 60,
+    slots: 2,
+    bookableOnline: true,
+    description:
+      'Une séance pour découvrir ce qu\'est la graphothérapie, pour tous les âges : tracés-glissés, détente du geste, tenue du crayon, rythme … Nous commençons l\'heure par un échange autour de votre écriture, votre lien avec elle, pour que je puisse ensuite adapter la séance à vos besoins ou envies.',
+    additionalNote: 'Une séance par personne',
+  },
+  restitution_bilan: {
+    id: 'restitution_bilan',
+    label: 'Restitution du bilan',
+    labelShort: 'Restitution',
+    duration: 60,
+    slots: 2,
+    bookableOnline: true,
+    description: 'Remise des documents et compte-rendu oral du bilan effectué.',
+    requiresLogin: true,
   },
 };
 
 // Liste des types réservables en ligne
-export const ONLINE_BOOKABLE_TYPES: AppointmentType[] = ['premier_rdv', 'remediation'];
+export const ONLINE_BOOKABLE_TYPES: AppointmentType[] = [
+  'premier_rdv',
+  'remediation',
+  'seance_decouverte',
+  'restitution_bilan',
+];
 
 // ============================================================================
 // CODES COULEURS
