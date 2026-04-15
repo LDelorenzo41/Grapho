@@ -268,7 +268,7 @@ export function Contact() {
                 {/* Types de RDV */}
                 <div className="mt-4 pt-4 border-t border-gray-200">
                   <p className="font-body text-sm font-semibold text-text mb-3">Types de rendez-vous :</p>
-                  <ol className="space-y-3 font-body text-sm text-gray-700 list-decimal list-inside marker:font-semibold marker:text-text">
+                  <ul className="space-y-3 font-body text-sm text-gray-700 list-none">
                     <li>
                       <span className="font-semibold text-text">Premier rendez-vous</span> : Première rencontre pour faire connaissance, identifier votre besoin (problématique, bilan, accompagnement ponctuel …) et débuter l'anamnèse.
                       <ul className="mt-1 ml-5 space-y-1 text-gray-600 list-none">
@@ -331,7 +331,7 @@ export function Contact() {
                         </li>
                       </ul>
                     </li>
-                  </ol>
+                  </ul>
                 </div>
               </div>
             </div>
