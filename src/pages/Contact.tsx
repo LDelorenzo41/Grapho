@@ -267,30 +267,71 @@ export function Contact() {
 
                 {/* Types de RDV */}
                 <div className="mt-4 pt-4 border-t border-gray-200">
-                  <p className="font-body text-sm font-semibold text-text mb-2">Types de rendez-vous :</p>
-                  <div className="space-y-1 font-body text-sm text-gray-600">
-                    <div className="flex items-center gap-2">
-                      <span 
-                        className="w-2 h-2 rounded-full"
-                        style={{ backgroundColor: CALENDAR_COLORS.available }}
-                      />
-                      <span>Premier rendez-vous : 30 minutes</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span 
-                        className="w-2 h-2 rounded-full"
-                        style={{ backgroundColor: CALENDAR_COLORS.available }}
-                      />
-                      <span>Séance de remédiation : 1 heure</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span 
-                        className="w-2 h-2 rounded-full"
-                        style={{ backgroundColor: CALENDAR_COLORS.accent }}
-                      />
-                      <span>Bilan : sur rendez-vous au cabinet</span>
-                    </div>
-                  </div>
+                  <p className="font-body text-sm font-semibold text-text mb-3">Types de rendez-vous :</p>
+                  <ul className="space-y-3 font-body text-sm text-gray-700 list-none">
+                    <li>
+                      <span className="font-semibold text-text">Premier rendez-vous</span> : Première rencontre pour faire connaissance, identifier votre besoin (problématique, bilan, accompagnement ponctuel …) et débuter l'anamnèse.
+                      <ul className="mt-1 ml-5 space-y-1 text-gray-600 list-none">
+                        <li className="flex items-center gap-2">
+                          <span
+                            className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: CALENDAR_COLORS.available }}
+                          />
+                          <span>30 minutes</span>
+                        </li>
+                      </ul>
+                    </li>
+                    <li>
+                      <span className="font-semibold text-text">Séance de remédiation</span> : Séance de remédiation adaptée à la problématique identifiée.
+                      <ul className="mt-1 ml-5 space-y-1 text-gray-600 list-none">
+                        <li className="flex items-center gap-2">
+                          <span
+                            className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: CALENDAR_COLORS.available }}
+                          />
+                          <span>Réservé aux clients existants</span>
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <span
+                            className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: CALENDAR_COLORS.available }}
+                          />
+                          <span>1h</span>
+                        </li>
+                      </ul>
+                    </li>
+                    <li>
+                      <span className="font-semibold text-text">Séance découverte</span> : Une séance pour découvrir ce qu'est la graphothérapie, pour tous les âges : tracés-glissés, détente du geste, tenue du crayon, rythme … Nous commençons l'heure par un échange autour de votre écriture, votre lien avec elle, pour que je puisse ensuite adapter la séance à vos besoins ou envies.
+                      <ul className="mt-1 ml-5 space-y-1 text-gray-600 list-none">
+                        <li className="flex items-center gap-2">
+                          <span
+                            className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: CALENDAR_COLORS.available }}
+                          />
+                          <span>Une séance par personne</span>
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <span
+                            className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: CALENDAR_COLORS.available }}
+                          />
+                          <span>1h</span>
+                        </li>
+                      </ul>
+                    </li>
+                    <li>
+                      <span className="font-semibold text-text">Restitution du bilan</span> : Remise des documents et compte-rendu oral du bilan effectué.
+                      <ul className="mt-1 ml-5 space-y-1 text-gray-600 list-none">
+                        <li className="flex items-center gap-2">
+                          <span
+                            className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: CALENDAR_COLORS.accent }}
+                          />
+                          <span>1h</span>
+                        </li>
+                      </ul>
+                    </li>
+                  </ul>
                 </div>
               </div>
             </div>
