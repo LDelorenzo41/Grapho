@@ -75,11 +75,39 @@ fonctions `SECURITY DEFINER` (`email_exists`, `get_busy_slots`,
 | `*_palier_2b1_*` | `is_admin()` + isolation client-par-client |
 | `*_palier_2b2_*` | RPC réservation + fermeture `anon` sur `users`/`appointments` |
 
-## Note : durcissement GRANT (non fait, optionnel)
+## Durcissement GRANT — non fait, optionnel (à revoir plus tard)
 
-Audit du 2026-05-19 : `anon` dispose encore de privilèges larges (dont
-`DELETE`/`UPDATE`/`TRUNCATE`) sur toutes les tables — défaut historique
-Supabase. **Actuellement neutralisé par la RLS** (anon filtré). Non requis
-pour l'échéance. Renforcement défense-en-profondeur possible plus tard :
-retirer à `anon` les privilèges destructifs, aligner `authenticated` sur du
-CRUD — à faire en mode staged (canari + rollback) comme la campagne RLS.
+Audit du 2026-05-19 : `anon`, `authenticated`, `service_role` disposent de
+**tous** les privilèges (SELECT/INSERT/UPDATE/DELETE/TRUNCATE) sur **toutes**
+les tables — défaut historique Supabase. **Actuellement neutralisé par la
+RLS** (anon filtré, prouvé : tables -> `[]` en anon). **Non requis pour
+l'échéance du 30/10/2026** (aucun impact conformité Data API).
+
+### Synthèse des risques réels si on ne durcit pas
+
+Le risque n'est pas « exploitable aujourd'hui » mais la **fragilité d'un
+modèle à une seule couche** : toute la protection repose sur « RLS active et
+correcte sur chaque table, pour toujours ».
+
+| Scénario | Exploitable aujourd'hui ? | Impact si déclenché |
+|---|---|---|
+| RLS désactivée par erreur sur une table | Non tant que RLS ON ; oui dès qu'elle saute | `anon` lit **et supprime** toutes les lignes via REST (santé/RGPD) ; récup PITR/backup seulement |
+| Nouvelle table sans `ENABLE RLS` (oubli) | Possible (erreur humaine) | Idem : exposition + écriture/suppression totale |
+| Policy boguée (`USING(true)`, erreur logique) | Possible avec la churn | GRANT large => rayon de souffle inclut écriture/suppression |
+| `TRUNCATE` accordé à `anon` | **Non** via Data API (PostgREST ne l'expose pas) | À relativiser : non atteignable par le web role |
+| Audit / revue RGPD | N/A | Finding garanti (violation moindre privilège) même si RLS mitige |
+
+**Bottom line :** ne rien faire n'expose à rien *aujourd'hui*, mais laisse la
+sécurité en équilibre sur une seule jambe (la RLS). Une **seule erreur** (RLS
+oubliée/désactivée, policy permissive) fait passer le rayon de souffle de
+« rien » à « anon lit ET détruit toutes les données via REST ». Probabilité
+faible mais croissante (nouveaux devs/tables) ; gravité élevée (données de
+santé / RGPD).
+
+### Renforcement recommandé (quand du temps disponible)
+
+Mode **staged** (canari + rollback), comme la campagne RLS :
+- retirer à `anon` les privilèges destructifs (ne garder que le strict
+  nécessaire à la réservation : `INSERT` sur `users`/`appointments`, etc.) ;
+- aligner `authenticated` sur `SELECT/INSERT/UPDATE/DELETE` (pas `TRUNCATE`) ;
+- vérifier chaque parcours (réservation publique incluse) avant/après.
