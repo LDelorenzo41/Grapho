@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, FileText, MessageSquare, CheckCircle } from 'lucide-react';
+import { Calendar, FileText, MessageSquare, CheckCircle, Shield } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { dataAdapter, type Appointment, type Message, type Document } from '../../lib/data';
 import { formatDateTime } from '../../lib/utils/date';
@@ -68,7 +68,7 @@ export function ClientDashboard() {
         <h1 className="font-title text-4xl font-bold text-text mb-2">Bonjour {user?.firstName} !</h1>
         <p className="font-body text-gray-600 mb-8">Bienvenue sur votre espace personnel</p>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Link
             to="/client/rendez-vous"
             className="bg-white rounded-lg shadow-sm border p-6 hover:shadow-md transition"
@@ -103,6 +103,19 @@ export function ClientDashboard() {
             </div>
             <p className="font-body text-3xl font-bold text-text">{unreadMessages.length}</p>
             <p className="font-body text-sm text-gray-600 mt-1">non lus</p>
+          </Link>
+
+          <Link
+            to="/client/mes-donnees"
+            className="bg-white rounded-lg shadow-sm border p-6 hover:shadow-md transition"
+          >
+            <div className="flex items-center space-x-3 mb-3">
+              <Shield className="w-6 h-6 text-secondary" />
+              <h3 className="font-title text-lg font-bold text-text">Mes données</h3>
+            </div>
+            <p className="font-body text-sm text-gray-600 mt-1">
+              Accéder, exporter ou supprimer mes données personnelles (RGPD)
+            </p>
           </Link>
         </div>
 
