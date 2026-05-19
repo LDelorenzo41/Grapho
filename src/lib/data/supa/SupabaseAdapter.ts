@@ -73,6 +73,12 @@ export const createSupabaseAdapter = (): DataAdapter => {
         if (error) throw error;
         return data ? userFromSnakeCase(data) : null;
       },
+      async emailExists(email: string) {
+        if (!supabase) return false;
+        const { data, error } = await supabase.rpc('email_exists', { p_email: email });
+        if (error) throw error;
+        return data === true;
+      },
       async create(user: CreateUserInput) {
         if (!supabase) throw new Error('Supabase not configured');
         
@@ -278,13 +284,14 @@ async getAvailableSlots(
 
   // Charger tous les rendez-vous de la période
   const { data: appointmentsData, error: appointmentsError } = await supabase
-    .from('appointments')
-    .select('start_time, end_time, status');
-    
+    .rpc('get_busy_slots');
+
   if (appointmentsError) throw appointmentsError;
 
   // Convertir les RDV au format attendu par le service
-  const existingAppointments: ExistingAppointment[] = (appointmentsData || []).map(apt => ({
+  const existingAppointments: ExistingAppointment[] = (
+    (appointmentsData || []) as { start_time: string; end_time: string; status: string }[]
+  ).map(apt => ({
     startTime: apt.start_time,
     endTime: apt.end_time,
     status: apt.status,
