@@ -20,6 +20,7 @@ export interface UsersRepository {
   getAll(): Promise<User[]>;
   getById(id: string): Promise<User | null>;
   getByEmail(email: string): Promise<User | null>;
+  emailExists(email: string): Promise<boolean>;
   create(user: CreateUserInput): Promise<User>; // ✅ MODIFIÉ: Utilise CreateUserInput au lieu de Omit<User, ...>
   update(id: string, user: Partial<User>): Promise<User>;
   delete(id: string): Promise<void>;

@@ -287,6 +287,9 @@ export const createMockAdapter = (): DataAdapter => {
       async getByEmail(email: string) {
         return storage.getData().users.find(u => u.email === email) || null;
       },
+      async emailExists(email: string) {
+        return storage.getData().users.some(u => u.email === email);
+      },
       async create(user) {
         const newUser: User = {
           ...user,

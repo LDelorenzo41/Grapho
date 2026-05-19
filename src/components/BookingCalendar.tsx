@@ -199,8 +199,8 @@ export function BookingCalendar({ onBookingComplete }: BookingCalendarProps) {
     }
 
     try {
-      const existingUser = await dataAdapter.users.getByEmail(bookingData.email);
-      if (existingUser) {
+      const exists = await dataAdapter.users.emailExists(bookingData.email);
+      if (exists) {
         alert('Un compte existe déjà avec cet email. Veuillez vous connecter.');
         return;
       }
